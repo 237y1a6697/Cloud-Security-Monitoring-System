@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - SentinelCore SecureOps</title>
+  <link rel="stylesheet" href="../static/css/main.css" th:href="@{/css/main.css}">
+  <link rel="icon" type="image/svg+xml" href="../static/images/logo.svg" th:href="@{/images/logo.svg}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    /* ── Page / section visibility ── */
+    .page-section {
+      display: none;
+    }
+
+    .page-section.active {
+      display: block;
+    }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(3px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 30px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+      animation: modalIn 0.22s ease;
+    }
+
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h3 {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .modal-field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 5px;
+    }
+
+    .modal-field input,
+    .modal-field select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-inset);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      transition: border-color 0.15s;
+    }
+
+    .modal-field input:focus,
+    .modal-field select:focus {
+      outline: none;
+      border-color: var(--highlight-blue);
+      box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+
+    .btn-modal-cancel {
+      padding: 9px 20px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border-color);
+      background: var(--bg-inset);
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-modal-cancel:hover {
+      background: var(--border-color);
+    }
+
+    .btn-modal-save {
+      padding: 9px 22px;
+      border-radius: 6px;
+      border: none;
+      background: linear-gradient(135deg, var(--primary-red), #EF5350);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 3px 8px rgba(198, 40, 40, 0.3);
+    }
+
+    .btn-modal-save:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(198, 40, 40, 0.4);
+    }
+
+    /* ── Notification toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      background: #1a1f2e;
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 500;
+    }
+
+    #toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    #toast.success {
+      border-left: 4px solid var(--success-green);
+    }
+
+    #toast.error {
+      border-left: 4px solid var(--danger-red);
+    }
+
+    /* ── Assets table extras ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar input[type="search"] {
+      padding: 8px 13px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border-color);
+      background: var(--bg-inset);
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      width: 220px;
+      transition: all 0.15s;
+    }
+
+    .toolbar input[type="search"]:focus {
+      outline: none;
+      border-color: var(--highlight-blue);
+      box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+    }
+
+    .toolbar select {
+      padding: 8px 11px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border-color);
+      background: var(--bg-inset);
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .btn-add {
+      margin-left: auto;
+      padding: 9px 18px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--primary-red), #EF5350);
+      color: #fff;
+      font-size: 0.86rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(198, 40, 40, 0.25);
+      transition: all 0.15s;
+    }
+
+    .btn-add:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(198, 40, 40, 0.38);
+    }
+
+    .tbl-action {
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      border: 1.5px solid;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: transparent;
+    }
+
+    .tbl-edit {
+      color: var(--highlight-blue);
+      border-color: rgba(25, 118, 210, 0.35);
+    }
+
+    .tbl-edit:hover {
+      background: var(--highlight-blue-bg);
+    }
+
+    .tbl-delete {
+      color: var(--danger-red);
+      border-color: rgba(198, 40, 40, 0.35);
+    }
+
+    .tbl-delete:hover {
+      background: var(--danger-red-bg);
+    }
+
+    /* progress mini bars in table */
+    .mini-bar-wrap {
+      width: 70px;
+      background: var(--bg-inset);
+      border-radius: 4px;
+      height: 6px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+
+    .mini-bar {
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    .mini-green {
+      background: var(--success-green);
+    }
+
+    .mini-orange {
+      background: var(--warning-amber);
+    }
+
+    .mini-red {
+      background: var(--danger-red);
+    }
+
+    /* placeholder pages */
+    .placeholder-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 60vh;
+      gap: 16px;
+      color: var(--text-muted);
+    }
+
+    .placeholder-page svg {
+      opacity: 0.25;
+    }
+
+    .placeholder-page h2 {
+      font-size: 1.3rem;
+      color: var(--text-secondary);
+    }
+
+    .placeholder-page p {
+      font-size: 0.9rem;
+    }
+
+    /* loading state */
+    .loading-row td {
+      text-align: center;
+      padding: 28px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container" id="appBody" style="display:none;">
+
+    <!-- ══════════════════ TOP NAV ══════════════════ -->
+    <header class="topnav">
+      <div class="brand-section">
+        <img src="../static/images/logo.svg" th:src="@{/images/logo.svg}" alt="Logo" class="brand-logo">
+        <span class="brand-name">SentinelCore SecureOps</span>
+      </div>
+      <div class="user-controls">
+        <div class="user-profile-block">
+          <div class="user-info">
+            <span class="user-badge" id="userRoleBadge">ROLE</span>
+            <span id="userDisplayName">Operator</span>
+          </div>
+          <button class="btn-export-pdf" id="exportPdfBtn" title="Export current dashboard view as PDF report">Export
+            PDF</button>
+        </div>
+        <button class="btn-logout" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <!-- ══════════════════ BODY ══════════════════ -->
+    <div class="dashboard-body">
+
+      <!-- ── Sidebar ── -->
+      <aside class="sidebar">
+        <nav>
+          <ul class="nav-list">
+            <li class="nav-item active" id="menu-dashboard">
+              <a href="#" class="nav-link" data-page="page-dashboard">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="9"></rect>
+                  <rect x="14" y="3" width="7" height="5"></rect>
+                  <rect x="14" y="12" width="7" height="9"></rect>
+                  <rect x="3" y="16" width="7" height="5"></rect>
+                </svg>
+                <span>Dashboard</span>
+              </a>
+            </li>
+            <li class="nav-item" id="menu-assets">
+              <a href="#" class="nav-link" data-page="page-assets">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                  </path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span>Assets</span>
+              </a>
+            </li>
+            <li class="nav-item" id="menu-incidents">
+              <a href="#" class="nav-link" data-page="page-incidents">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                  </path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>Incidents</span>
+              </a>
+            </li>
+            <li class="nav-item" id="menu-vulnerabilities">
+              <a href="#" class="nav-link" data-page="page-vulnerabilities">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  <line x1="8" y1="11" x2="16" y2="11"></line>
+                </svg>
+                <span>Vulnerabilities</span>
+              </a>
+            </li>
+            <li class="nav-item" id="menu-audit">
+              <a href="#" class="nav-link" data-page="page-audit">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Audit</span>
+              </a>
+            </li>
+            <li class="nav-item" id="menu-compliance">
+              <a href="#" class="nav-link" data-page="page-compliance">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>Compliance</span>
+              </a>
+            </li>
+            <li class="nav-item" id="menu-devsecops">
+              <a href="#" class="nav-link" data-page="page-devsecops">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 18 22 12 16 6"></polyline>
+                  <polyline points="8 6 2 12 8 18"></polyline>
+                  <line x1="12" y1="2" x2="12" y2="22"></line>
+                </svg>
+                <span>DevSecOps</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="status-indicator">
+            <span class="status-dot pulsing" id="healthPulseDot"></span>
+            <span>Sentinel Nodes Active</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ══════════════════ MAIN CONTENT ══════════════════ -->
+      <main class="main-content">
+
+        <!-- ───── DASHBOARD PAGE ───── -->
+        <div id="page-dashboard" class="page-section active">
+          <section class="content-header">
+            <h1>Servers, Cloud, Network Health Overview</h1>
+          </section>
+
+          <section class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Assets Monitored</div>
+              <div class="stat-value" id="db-total">—</div>
+              <div class="stat-sub">Servers + Cloud</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Healthy Assets</div>
+              <div class="stat-value" id="db-healthy" style="color:var(--success-green)">—</div>
+              <div class="stat-sub">SLA Maintained</div>
+            </div>
+            <div class="stat-card alert-card">
+              <span class="pulse-indicator"></span>
+              <div class="stat-label">Critical / Warning</div>
+              <div class="stat-value" id="db-issues">—</div>
+              <div class="stat-sub">Requires triage</div>
+            </div>
+          </section>
+
+          <section class="dashboard-mid-grid">
+            <div class="panel-card">
+              <h2 class="panel-title">Asset Service – Infrastructure Health <span class="panel-subtitle">SentinelCore
+                  active checks</span></h2>
+              <div class="infra-health-layout">
+                <div class="infra-metric-row"><span class="infra-label">Servers Core Inventory</span><span
+                    class="infra-value-details">Total: <strong id="inf-total">—</strong> | <span
+                      class="hl-green">Healthy: <strong id="inf-healthy">—</strong></span> | <span
+                      class="hl-orange">Warning: <strong id="inf-warning">—</strong></span> | <span
+                      class="hl-red">Critical: <strong id="inf-critical">—</strong></span></span></div>
+                <div class="infra-metric-row"><span class="infra-label">Cloud Infrastructure Layout</span><span
+                    class="infra-value-details">AWS: <strong>847 Nodes</strong> | Azure: <strong>400 Nodes</strong> |
+                    K8s clusters: <strong>47</strong> | Pods: <strong>2,847 Active</strong></span></div>
+                <div class="infra-metric-row"><span class="infra-label">Health &amp; Outage SLA Reports</span><span
+                    class="infra-value-details">Current SLA: <span class="hl-green">99.99% uptime</span> | Unscheduled
+                    Outages: <strong class="hl-green">0</strong> | SLA Target: <strong>Met</strong></span></div>
+                <div class="infra-metric-row"><span class="infra-label">Active Mitigation Triggers</span><span
+                    class="infra-value-details">Alert: <strong class="hl-red">DB-SRV-12 CPU 94%</strong> &rarr;
+                    Auto-scaled, Resolved.<br>Alert: <strong class="hl-orange">APP-SRV-47 Disk 91%</strong> &rarr;
+                    Cleanup scheduled.</span></div>
+              </div>
+              <div class="button-panel">
+                <button class="btn-secondary btn-blue" onclick="switchPage('page-assets')">View Assets</button>
+                <button class="btn-secondary">Scale Clusters</button>
+                <button class="btn-secondary">Investigate Nodes</button>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h2 class="panel-title">Core System Metrics <span class="panel-subtitle">Real-time load aggregates</span>
+              </h2>
+              <div class="metrics-list">
+                <div class="metric-item">
+                  <div class="metric-header"><span class="metric-name">Average Network Traffic</span><span
+                      class="metric-percentage" id="metric-network-value">—</span></div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill normal" id="metric-network-bar" style="width:0%"></div>
+                  </div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-header"><span class="metric-name">Memory Consumption</span><span
+                      class="metric-percentage" id="metric-memory-value">—</span></div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill normal" id="metric-memory-bar" style="width:0%"></div>
+                  </div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-header"><span class="metric-name">Disk Utilization</span><span
+                      class="metric-percentage" id="metric-disk-value">—</span></div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill warning" id="metric-disk-bar" style="width:0%"></div>
+                  </div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-header"><span class="metric-name">CPU Load Peak</span><span
+                      class="metric-percentage" id="metric-cpu-value">—</span></div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill normal" id="metric-cpu-bar" style="width:0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dashboard-bottom-grid">
+            <div class="panel-card">
+              <h2 class="panel-title">Recent System Alerts <span class="panel-subtitle">Real-time incident response
+                  log</span></h2>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Severity</th>
+                      <th>Asset Node</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="timeline-time">12:14:02</td>
+                      <td><span class="badge badge-critical">Critical</span></td>
+                      <td>DB-SRV-12 (CPU 94%)</td>
+                      <td><span class="badge badge-status resolved">Auto-scaled / Resolved</span></td>
+                      <td><a href="#" class="action-link">Acknowledge</a></td>
+                    </tr>
+                    <tr>
+                      <td class="timeline-time">12:09:51</td>
+                      <td><span class="badge badge-warning">Warning</span></td>
+                      <td>APP-SRV-47 (Disk 91%)</td>
+                      <td><span class="badge badge-status active">Cleanup Scheduled</span></td>
+                      <td><a href="#" class="action-link">Remediate</a></td>
+                    </tr>
+                    <tr>
+                      <td class="timeline-time">11:45:10</td>
+                      <td><span class="badge badge-critical">Critical</span></td>
+                      <td>FW-GW-03 (DDoS Attempt)</td>
+                      <td><span class="badge badge-status resolved">IP Null-routed</span></td>
+                      <td><a href="#" class="action-link">Acknowledge</a></td>
+                    </tr>
+                    <tr>
+                      <td class="timeline-time">11:30:15</td>
+                      <td><span class="badge badge-info">Info</span></td>
+                      <td>K8S-CLUSTER-1 (Scaling up)</td>
+                      <td><span class="badge badge-status resolved">Completed</span></td>
+                      <td><a href="#" class="action-link">View Logs</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h2 class="panel-title">Recent Activity <span class="panel-subtitle">Audit trails</span></h2>
+              <div class="timeline">
+                <div class="timeline-item"><span class="timeline-point danger"></span>
+                  <div class="timeline-header"><span>Audit Event</span><span class="timeline-time">12:15:32</span></div>
+                  <div class="timeline-desc">Critical threshold hit: DB-SRV-12 auto-scale triggered.</div>
+                </div>
+                <div class="timeline-item"><span class="timeline-point active"></span>
+                  <div class="timeline-header"><span>Config Change</span><span class="timeline-time">12:08:44</span>
+                  </div>
+                  <div class="timeline-desc">Operator initiated partition cleanup on APP-SRV-47.</div>
+                </div>
+                <div class="timeline-item"><span class="timeline-point warning"></span>
+                  <div class="timeline-header"><span>User Login</span><span class="timeline-time">12:00:03</span></div>
+                  <div class="timeline-desc">Console session from external IP 10.14.92.115.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ───── ASSETS PAGE (MAIN CRUD) ───── -->
+        <div id="page-assets" class="page-section">
+          <section class="content-header">
+            <h1>Asset Management — Full CRUD</h1>
+          </section>
+
+          <!-- Summary cards -->
+          <section class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card">
+              <div class="stat-label">Total Assets</div>
+              <div class="stat-value" id="as-total">0</div>
+              <div class="stat-sub">All devices</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Healthy</div>
+              <div class="stat-value" style="color:var(--success-green)" id="as-healthy">0</div>
+              <div class="stat-sub">Operational</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Warning</div>
+              <div class="stat-value" style="color:var(--warning-amber)" id="as-warning">0</div>
+              <div class="stat-sub">Needs attention</div>
+            </div>
+            <div class="stat-card alert-card">
+              <div class="stat-label">Critical</div>
+              <div class="stat-value" id="as-critical">0</div>
+              <div class="stat-sub">Immediate action</div>
+            </div>
+          </section>
+
+          <div class="panel-card">
+            <div class="toolbar">
+              <input type="search" id="assetSearch" placeholder="Search by name…" oninput="filterAssets()">
+              <select id="assetStatusFilter" onchange="filterAssets()">
+                <option value="">All Statuses</option>
+                <option>Healthy</option>
+                <option>Warning</option>
+                <option>Critical</option>
+              </select>
+              <select id="assetTypeFilter" onchange="filterAssets()">
+                <option value="">All Types</option>
+                <option>Server</option>
+                <option>Cloud</option>
+                <option>Network</option>
+                <option>Database</option>
+              </select>
+              <button class="btn-add" onclick="openAddModal()">+ Add Asset</button>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="data-table" id="assetsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>CPU</th>
+                    <th>Memory</th>
+                    <th>Disk</th>
+                    <th>Network</th>
+                    <th>Uptime (h)</th>
+                    <th>Location</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="assetsTbody">
+                  <tr class="loading-row">
+                    <td colspan="11">Loading assets…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ───── INCIDENTS PAGE ───── -->
+        <div id="page-incidents" class="page-section">
+          <section class="content-header">
+            <h1>Incidents</h1>
+          </section>
+          <div class="panel-card">
+            <div class="placeholder-page">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                </path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <h2>Incidents Module</h2>
+              <p>Real-time incident tracking and response will appear here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ───── VULNERABILITIES PAGE ───── -->
+        <div id="page-vulnerabilities" class="page-section">
+          <section class="content-header">
+            <h1>Vulnerabilities</h1>
+          </section>
+          <div class="panel-card">
+            <div class="placeholder-page">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              <h2>Vulnerability Scanner</h2>
+              <p>CVE database and vulnerability assessments will appear here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ───── AUDIT PAGE ───── -->
+        <div id="page-audit" class="page-section">
+          <section class="content-header">
+            <h1>Audit Logs</h1>
+          </section>
+          <div class="panel-card">
+            <div class="placeholder-page">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <h2>Audit Trail</h2>
+              <p>Operator actions and system events will be logged here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ───── COMPLIANCE PAGE ───── -->
+        <div id="page-compliance" class="page-section">
+          <section class="content-header">
+            <h1>Compliance</h1>
+          </section>
+          <div class="panel-card">
+            <div class="placeholder-page">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <h2>Compliance Reports</h2>
+              <p>ISO 27001, SOC2, and GDPR compliance status will appear here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ───── DEVSECOPS PAGE ───── -->
+        <div id="page-devsecops" class="page-section">
+          <section class="content-header">
+            <h1>DevSecOps</h1>
+          </section>
+          <div class="panel-card">
+            <div class="placeholder-page">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+                <line x1="12" y1="2" x2="12" y2="22"></line>
+              </svg>
+              <h2>DevSecOps Pipeline</h2>
+              <p>CI/CD security scanning and pipeline metrics will appear here.</p>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ══════════════════ ADD / EDIT MODAL ══════════════════ -->
+  <div class="modal-overlay" id="assetModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Asset</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <input type="hidden" id="modalAssetId">
+      <div class="modal-grid">
+        <div class="modal-field full">
+          <label>Asset Name *</label>
+          <input type="text" id="m-assetName" placeholder="e.g. DB-SRV-12" required>
+        </div>
+        <div class="modal-field">
+          <label>Asset Type *</label>
+          <select id="m-assetType">
+            <option value="">Select type…</option>
+            <option>Server</option>
+            <option>Cloud</option>
+            <option>Network</option>
+            <option>Database</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Status *</label>
+          <select id="m-status">
+            <option value="">Select status…</option>
+            <option>Healthy</option>
+            <option>Warning</option>
+            <option>Critical</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>CPU Usage (%)</label>
+          <input type="number" id="m-cpu" min="0" max="100" placeholder="0">
+        </div>
+        <div class="modal-field">
+          <label>Memory Usage (%)</label>
+          <input type="number" id="m-memory" min="0" max="100" placeholder="0">
+        </div>
+        <div class="modal-field">
+          <label>Disk Usage (%)</label>
+          <input type="number" id="m-disk" min="0" max="100" placeholder="0">
+        </div>
+        <div class="modal-field">
+          <label>Network Usage (%)</label>
+          <input type="number" id="m-network" min="0" max="100" placeholder="0">
+        </div>
+        <div class="modal-field">
+          <label>Uptime (hours)</label>
+          <input type="number" id="m-uptime" step="0.1" placeholder="0">
+        </div>
+        <div class="modal-field">
+          <label>Location</label>
+          <input type="text" id="m-location" placeholder="e.g. US-East-1">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-modal-save" onclick="saveAsset()">Save Asset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script src="../static/js/dashboard.js" th:src="@{/js/dashboard.js}"></script>
+</body>
+
+</html>
