@@ -11,6 +11,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -74,6 +75,15 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/api/**") // Keep CSRF off for REST API
             )
             .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    if (request.getRequestURI().startsWith("/api/")) {
+                        response.setStatus(401);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\": \"401 Unauthorized — please log in\"}");
+                    } else {
+                        response.sendRedirect("/login");
+                    }
+                })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     if (request.getRequestURI().startsWith("/api/")) {
                         response.setStatus(403);

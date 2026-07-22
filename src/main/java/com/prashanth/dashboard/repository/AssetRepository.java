@@ -1,6 +1,7 @@
 package com.prashanth.dashboard.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -19,4 +20,13 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
   // Total count
   long count();
+
+  // Find by IP address
+  Optional<Asset> findByIpAddress(String ipAddress);
+
+  // Check if IP address exists (excluding a specific asset ID for updates)
+  boolean existsByIpAddressAndIdNot(String ipAddress, Long id);
+
+  // Check if IP address exists
+  boolean existsByIpAddress(String ipAddress);
 }

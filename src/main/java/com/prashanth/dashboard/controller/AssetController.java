@@ -1,13 +1,23 @@
 package com.prashanth.dashboard.controller;
 
-import com.prashanth.dashboard.model.Asset;
-import com.prashanth.dashboard.repository.AssetRepository;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
-import com.prashanth.dashboard.aop.Auditable;
-
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.prashanth.dashboard.aop.Auditable;
+import com.prashanth.dashboard.model.Asset;
+import com.prashanth.dashboard.repository.AssetRepository;
 
 @RestController
 @RequestMapping("/api/assets")
@@ -45,6 +55,10 @@ public class AssetController {
   @PreAuthorize("hasAuthority('ASSET_CREATE')")
   @Auditable(action = "Create Asset")
   public Asset createAsset(@RequestBody Asset asset) {
+    // Validate IP address uniqueness
+    if (assetRepository.existsByIpAddress(asset.getIpAddress())) {
+      throw new RuntimeException("IP Address already assigned to another asset.");
+    }
     return assetRepository.save(asset);
   }
 
@@ -59,6 +73,7 @@ public class AssetController {
       .map(asset -> {
 
         asset.setAssetName(updatedAsset.getAssetName());
+        asset.setIpAddress(updatedAsset.getIpAddress());
         asset.setAssetType(updatedAsset.getAssetType());
         asset.setStatus(updatedAsset.getStatus());
 
@@ -69,6 +84,11 @@ public class AssetController {
 
         asset.setUptime(updatedAsset.getUptime());
         asset.setLocation(updatedAsset.getLocation());
+
+        // Validate IP address uniqueness (excluding current asset)
+        if (assetRepository.existsByIpAddressAndIdNot(updatedAsset.getIpAddress(), id)) {
+          throw new RuntimeException("IP Address already assigned to another asset.");
+        }
 
         return assetRepository.save(asset);
 

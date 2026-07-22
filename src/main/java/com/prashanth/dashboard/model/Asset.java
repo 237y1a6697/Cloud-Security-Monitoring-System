@@ -1,6 +1,11 @@
 package com.prashanth.dashboard.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "asset")
@@ -11,6 +16,8 @@ public class Asset {
   private Long id;
 
   private String assetName;
+    @Column(unique = true)
+    private String ipAddress;
   private String assetType;
   private String status;
 
@@ -26,11 +33,12 @@ public class Asset {
   public Asset() {
   }
 
-  public Asset(Long id, String assetName, String assetType, String status,
+  public Asset(Long id, String assetName, String ipAddress, String assetType, String status,
                int cpuUsage, int memoryUsage, int diskUsage,
                int networkUsage, double uptime, String location) {
     this.id = id;
     this.assetName = assetName;
+    this.ipAddress = ipAddress;
     this.assetType = assetType;
     this.status = status;
     this.cpuUsage = cpuUsage;
@@ -55,6 +63,14 @@ public class Asset {
 
   public void setAssetName(String assetName) {
     this.assetName = assetName;
+  }
+
+  public String getIpAddress() {
+    return ipAddress;
+  }
+
+  public void setIpAddress(String ipAddress) {
+    this.ipAddress = ipAddress;
   }
 
   public String getAssetType() {

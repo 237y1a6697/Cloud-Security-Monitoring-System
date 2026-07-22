@@ -593,6 +593,16 @@ let _allAssets = [];
 async function loadAssets() {
     try {
         const res = await fetch(API);
+        if (res.status === 401) {
+            const tb = document.getElementById('assetsTbody');
+            if (tb) tb.innerHTML = '<tr class="loading-row"><td colspan="11">Session expired. Please <a href="/login">log in again</a>.</td></tr>';
+            return;
+        }
+        if (!res.ok) {
+            const tb = document.getElementById('assetsTbody');
+            if (tb) tb.innerHTML = `<tr class="loading-row"><td colspan="11">Failed to load assets (HTTP ${res.status}). Check server logs.</td></tr>`;
+            return;
+        }
         _allAssets = await res.json();
         renderAssetsTable(_allAssets);
         updateAssetSummaryCards(_allAssets);
@@ -618,7 +628,7 @@ function renderAssetsTable(assets) {
     if (!tbody) return;
 
     if (!assets.length) {
-        tbody.innerHTML = '<tr class="loading-row"><td colspan="11">No assets found.</td></tr>';
+        tbody.innerHTML = '<tr class="loading-row"><td colspan="12">No assets found.</td></tr>';
         return;
     }
 
@@ -626,6 +636,7 @@ function renderAssetsTable(assets) {
     <tr>
       <td>${a.id}</td>
       <td><strong>${escHtml(a.assetName || '—')}</strong></td>
+      <td>${escHtml(a.ipAddress || '—')}</td>
       <td>${escHtml(a.assetType || '—')}</td>
       <td><span class="badge ${statusBadgeClass(a.status)}">${escHtml(a.status || '—')}</span></td>
       <td>${miniBar(a.cpuUsage)}</td>
@@ -671,7 +682,7 @@ function filterAssets() {
 /*  MODAL — ADD / EDIT / VIEW                                           */
 /* ------------------------------------------------------------------ */
 function setModalFieldsDisabled(disabled) {
-    const fields = ['m-assetName', 'm-assetType', 'm-status', 'm-cpu', 'm-memory', 'm-disk', 'm-network', 'm-uptime', 'm-location'];
+    const fields = ['m-assetName', 'm-ipAddress', 'm-assetType', 'm-status', 'm-cpu', 'm-memory', 'm-disk', 'm-network', 'm-uptime', 'm-location'];
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = disabled;
@@ -708,6 +719,7 @@ function openEditModal(id) {
     document.getElementById('modalTitle').textContent = 'Edit Asset';
     document.getElementById('modalAssetId').value = asset.id;
     document.getElementById('m-assetName').value = asset.assetName || '';
+    document.getElementById('m-ipAddress').value = asset.ipAddress || '';
     document.getElementById('m-assetType').value = asset.assetType || '';
     document.getElementById('m-status').value = asset.status || '';
     document.getElementById('m-cpu').value = asset.cpuUsage ?? '';
@@ -726,6 +738,7 @@ function openViewModal(id) {
     document.getElementById('modalTitle').textContent = 'View Asset';
     document.getElementById('modalAssetId').value = asset.id;
     document.getElementById('m-assetName').value = asset.assetName || '';
+    document.getElementById('m-ipAddress').value = asset.ipAddress || '';
     document.getElementById('m-assetType').value = asset.assetType || '';
     document.getElementById('m-status').value = asset.status || '';
     document.getElementById('m-cpu').value = asset.cpuUsage ?? '';
