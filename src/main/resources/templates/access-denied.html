@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied — SentinelCore</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="icon" type="image/svg+xml" th:href="@{/images/logo.svg}">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at 50% 50%, rgba(220, 38, 38, 0.1) 0%, transparent 60%),
+                linear-gradient(135deg, #070b15, #0d1530);
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            color: #d0d8ee;
+        }
+
+        .error-card {
+            text-align: center;
+            background: rgba(13, 21, 47, 0.85);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: 20px;
+            padding: 52px 48px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            animation: fadeIn .5s cubic-bezier(.22, 1, .36, 1) both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
+
+        .error-code {
+            font-size: 6rem;
+            font-weight: 800;
+            color: rgba(220, 38, 38, 0.3);
+            line-height: 1;
+            margin-bottom: 8px;
+            letter-spacing: -4px;
+        }
+
+        .error-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #f87171;
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 0.9rem;
+            color: #8a9bb8;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 11px 24px;
+            border-radius: 9px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: transform .15s, box-shadow .15s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e5fc8, #3a7bd5);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(58, 123, 213, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.07);
+            color: #c8d4ee;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="error-card">
+        <span class="error-icon">🚫</span>
+        <div class="error-code">403</div>
+        <h1>Access Denied</h1>
+        <p>You don't have permission to access this resource.<br>
+            Your current role does not allow this action.<br>
+            Contact your administrator if you believe this is a mistake.</p>
+        <div class="btn-group">
+            <a th:href="@{/dashboard}" class="btn btn-primary">Go to Dashboard</a>
+            <a th:href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+        </div>
+    </div>
+</body>
+
+</html>
