@@ -55,9 +55,12 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         // ── 1. Seed permissions (idempotent) ─────────────────────────────────
         String[] allPerms = {
-            "USER_MANAGE", "ROLE_ASSIGN", "ASSET_CREATE", "ASSET_EDIT", "ASSET_DELETE", "ASSET_VIEW",
-            "SERVER_RESTART", "CLUSTER_SCALE", "CLOUD_MODIFY", "INCIDENT_MANAGE", "INCIDENT_RESOLVE",
-            "VULN_MANAGE", "COMPLIANCE_VIEW", "REPORT_EXPORT", "AUDIT_VIEW", "INTEGRATION_CONFIG"
+            "USER_MANAGE", "ROLE_ASSIGN",
+            "ASSET_CREATE", "ASSET_EDIT", "ASSET_DELETE", "ASSET_VIEW",
+            "INCIDENT_VIEW", "INCIDENT_CREATE", "INCIDENT_MANAGE", "INCIDENT_RESOLVE", "INCIDENT_DELETE",
+            "SERVER_RESTART", "CLUSTER_SCALE", "CLOUD_MODIFY",
+            "VULN_MANAGE", "COMPLIANCE_VIEW", "REPORT_EXPORT", "AUDIT_VIEW",
+            "INTEGRATION_CONFIG", "SETTINGS_ACCESS"
         };
         for (String p : allPerms) {
             if (permissionRepository.findByName(p).isEmpty()) {
@@ -65,19 +68,50 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
 
-        // ── 2. Seed roles (idempotent) ────────────────────────────────────────
-        seedRole("ROLE_SUPER_ADMIN", allPerms);
-        seedRole("ROLE_ADMIN", "ASSET_CREATE","ASSET_EDIT","ASSET_DELETE","ASSET_VIEW",
-                "SERVER_RESTART","CLUSTER_SCALE","INCIDENT_MANAGE","VULN_MANAGE",
-                "USER_MANAGE","ROLE_ASSIGN","COMPLIANCE_VIEW","REPORT_EXPORT");
-        seedRole("ROLE_SOC_MANAGER", "ASSET_VIEW","INCIDENT_MANAGE","INCIDENT_RESOLVE",
-                "VULN_MANAGE","REPORT_EXPORT","AUDIT_VIEW");
-        seedRole("ROLE_SECURITY_ANALYST", "ASSET_VIEW","INCIDENT_MANAGE","VULN_MANAGE","REPORT_EXPORT");
-        seedRole("ROLE_INCIDENT_RESPONDER", "ASSET_VIEW","INCIDENT_MANAGE","INCIDENT_RESOLVE","AUDIT_VIEW");
-        seedRole("ROLE_DEVSECOPS", "ASSET_VIEW","VULN_MANAGE","SERVER_RESTART","CLUSTER_SCALE");
-        seedRole("ROLE_AUDITOR", "ASSET_VIEW","AUDIT_VIEW","COMPLIANCE_VIEW","REPORT_EXPORT");
-        seedRole("ROLE_INFRA_ENGINEER", "ASSET_VIEW","ASSET_EDIT","SERVER_RESTART","CLUSTER_SCALE","CLOUD_MODIFY");
-        seedRole("ROLE_VIEWER", "ASSET_VIEW");
+        // ── 2. Seed roles (idempotent + update permissions if role already exists) ──
+        seedOrUpdateRole("ROLE_SUPER_ADMIN", allPerms);
+
+        seedOrUpdateRole("ROLE_ADMIN",
+                "ASSET_CREATE","ASSET_EDIT","ASSET_DELETE","ASSET_VIEW",
+                "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE","INCIDENT_RESOLVE","INCIDENT_DELETE",
+                "SERVER_RESTART","CLUSTER_SCALE","CLOUD_MODIFY",
+                "VULN_MANAGE","COMPLIANCE_VIEW","REPORT_EXPORT","AUDIT_VIEW",
+                "USER_MANAGE","ROLE_ASSIGN","SETTINGS_ACCESS","INTEGRATION_CONFIG");
+
+        seedOrUpdateRole("ROLE_SOC_MANAGER",
+                "ASSET_VIEW",
+                "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE","INCIDENT_RESOLVE",
+                "REPORT_EXPORT","AUDIT_VIEW");
+
+        seedOrUpdateRole("ROLE_SECURITY_ANALYST",
+                "ASSET_VIEW",
+                "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE",
+                "VULN_MANAGE","REPORT_EXPORT");
+
+        seedOrUpdateRole("ROLE_INCIDENT_RESPONDER",
+                "ASSET_VIEW",
+                "INCIDENT_VIEW","INCIDENT_MANAGE","INCIDENT_RESOLVE",
+                "AUDIT_VIEW");
+
+        seedOrUpdateRole("ROLE_INFRA_ENGINEER",
+                "ASSET_VIEW","ASSET_CREATE","ASSET_EDIT","ASSET_DELETE",
+                "INCIDENT_VIEW",
+                "SERVER_RESTART","CLUSTER_SCALE","CLOUD_MODIFY",
+                "REPORT_EXPORT");
+
+        seedOrUpdateRole("ROLE_DEVSECOPS",
+                "ASSET_VIEW","ASSET_CREATE","ASSET_EDIT",
+                "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE",
+                "VULN_MANAGE","SERVER_RESTART","CLUSTER_SCALE",
+                "REPORT_EXPORT");
+
+        seedOrUpdateRole("ROLE_AUDITOR",
+                "ASSET_VIEW",
+                "INCIDENT_VIEW",
+                "AUDIT_VIEW","COMPLIANCE_VIEW","REPORT_EXPORT");
+
+        seedOrUpdateRole("ROLE_VIEWER",
+                "ASSET_VIEW","INCIDENT_VIEW");
 
         // ── 3. Bootstrap super-admin (only if username "admin" absent) ────────
         if (userRepository.findByUsername("admin").isEmpty()) {
@@ -130,9 +164,9 @@ public class DataInitializer implements CommandLineRunner {
       }
     }
 
-    private void seedRole(String roleName, String... perms) {
-        if (roleRepository.findByName(roleName).isPresent()) return;
-        Role role = new Role(roleName);
+    /** Creates role if absent; always updates its permission set so new perms are picked up on restart. */
+    private void seedOrUpdateRole(String roleName, String... perms) {
+        Role role = roleRepository.findByName(roleName).orElseGet(() -> new Role(roleName));
         Set<Permission> pSet = Arrays.stream(perms)
                 .map(p -> permissionRepository.findByName(p))
                 .filter(Optional::isPresent)

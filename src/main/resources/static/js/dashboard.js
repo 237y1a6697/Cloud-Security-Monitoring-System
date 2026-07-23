@@ -6,6 +6,31 @@
 const API = '/api/assets';
 
 /* ------------------------------------------------------------------ */
+/*  RBAC HELPERS                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Display a professional SweetAlert2 Access Denied popup. */
+function showAccessDenied() {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Access Denied',
+            text: 'You do not have permission to perform this action. Please contact your administrator if you require additional access.',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#C62828'
+        });
+    } else {
+        alert('Access Denied: You do not have permission to perform this action.');
+    }
+}
+
+/** Check if the current logged-in user has a given permission. */
+function can(permission) {
+    return Array.isArray(window.USER_PERMISSIONS) &&
+        window.USER_PERMISSIONS.includes(permission);
+}
+
+/* ------------------------------------------------------------------ */
 /*  DOM READY                                                           */
 /* ------------------------------------------------------------------ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -598,6 +623,12 @@ async function loadAssets() {
             if (tb) tb.innerHTML = '<tr class="loading-row"><td colspan="11">Session expired. Please <a href="/login">log in again</a>.</td></tr>';
             return;
         }
+        if (res.status === 403) {
+            const tb = document.getElementById('assetsTbody');
+            if (tb) tb.innerHTML = '<tr class="loading-row"><td colspan="11">Access Denied — you do not have permission to view assets.</td></tr>';
+            showAccessDenied();
+            return;
+        }
         if (!res.ok) {
             const tb = document.getElementById('assetsTbody');
             if (tb) tb.innerHTML = `<tr class="loading-row"><td colspan="11">Failed to load assets (HTTP ${res.status}). Check server logs.</td></tr>`;
@@ -632,6 +663,9 @@ function renderAssetsTable(assets) {
         return;
     }
 
+    const canEdit = can('ASSET_EDIT');
+    const canDelete = can('ASSET_DELETE');
+
     tbody.innerHTML = assets.map(a => `
     <tr>
       <td>${a.id}</td>
@@ -647,8 +681,8 @@ function renderAssetsTable(assets) {
       <td>${escHtml(a.location || '—')}</td>
       <td>
         <button class="tbl-action tbl-view" onclick="openViewModal(${a.id})">👁 View</button>
-        <button class="tbl-action tbl-edit" onclick="openEditModal(${a.id})">✏ Edit</button>
-        <button class="tbl-action tbl-delete" onclick="deleteAsset(${a.id})">🗑 Delete</button>
+        ${canEdit ? `<button class="tbl-action tbl-edit"   onclick="openEditModal(${a.id})">✏ Edit</button>` : ''}
+        ${canDelete ? `<button class="tbl-action tbl-delete" onclick="deleteAsset(${a.id})">🗑 Delete</button>` : ''}
       </td>
     </tr>
   `).join('');
@@ -709,6 +743,7 @@ function openAddModal() {
 }
 
 function openEditModal(id) {
+    if (!can('ASSET_EDIT')) { showAccessDenied(); return; }
     const asset = _allAssets.find(a => a.id === id);
     if (!asset) { showToast('Asset not found.', 'error'); return; }
 
@@ -775,6 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function saveAsset() {
     const idVal = document.getElementById('modalAssetId').value;
     const name = document.getElementById('m-assetName').value.trim();
+    const ip = document.getElementById('m-ipAddress') ? document.getElementById('m-ipAddress').value.trim() : '';
     const type = document.getElementById('m-assetType').value;
     const stat = document.getElementById('m-status').value;
 
@@ -785,6 +821,7 @@ async function saveAsset() {
 
     const payload = {
         assetName: name,
+        ipAddress: ip || null,
         assetType: type,
         status: stat,
         cpuUsage: Number(document.getElementById('m-cpu').value) || 0,
@@ -806,6 +843,7 @@ async function saveAsset() {
             body: JSON.stringify(payload)
         });
 
+        if (res.status === 403) { showAccessDenied(); return; }
         if (!res.ok) throw new Error(await res.text());
 
         closeModal();
@@ -823,16 +861,17 @@ async function saveAsset() {
 }
 
 async function deleteAsset(id) {
-    if (!confirm('Delete this asset? This cannot be undone.')) return;
-
+    if (!can('ASSET_DELETE')) { showAccessDenied(); return; }
+    if (!confirm('Delete this asset?')) return;
     try {
         const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+        if (res.status === 403) { showAccessDenied(); return; }
         if (!res.ok) throw new Error(await res.text());
         showToast('Asset deleted.');
         await loadAssets();
+        loadDashboardStats();
     } catch (err) {
-        showToast('Error deleting asset: ' + err.message, 'error');
-        console.error(err);
+        showToast('Delete failed: ' + err.message, 'error');
     }
 }
 
@@ -1019,8 +1058,16 @@ async function loadIncidents() {
         tbody.innerHTML = `<tr><td colspan="6" class="loading-overlay"><span class="spinner"></span>Loading incidents…</td></tr>`;
 
         const response = await fetch("/api/incidents");
+        if (response.status === 403) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger-red);padding:18px;">Access Denied — you do not have permission to view incidents.</td></tr>`;
+            showAccessDenied();
+            return;
+        }
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const incidents = await response.json();
+
+        const canManage = can('INCIDENT_MANAGE');
+        const canDelete = can('INCIDENT_DELETE');
 
         tbody.innerHTML = "";
         if (!incidents || incidents.length === 0) {
@@ -1049,8 +1096,8 @@ async function loadIncidents() {
   <td>
     <span class="badge badge-status ${status.toLowerCase()}" style="margin-right:6px;">${status}</span>
     <div class="action-btns" style="display:inline-flex;gap:4px;">
-      <button class="btn-sm btn-edit" onclick="openIncidentModal(${incident.id})">Edit</button>
-      <button class="btn-sm btn-delete" onclick="confirmDeleteIncident(${incident.id})">Delete</button>
+      ${canManage ? `<button class="btn-sm btn-edit" onclick="openIncidentModal(${incident.id})">Edit</button>` : ''}
+      ${canDelete ? `<button class="btn-sm btn-delete" onclick="confirmDeleteIncident(${incident.id})">Delete</button>` : ''}
     </div>
   </td>
 </tr>`;
@@ -1078,6 +1125,10 @@ async function loadIncidents() {
 }
 
 function openIncidentModal(incidentId = null) {
+    // Permission check: creating new or editing existing
+    const requiredPerm = incidentId ? 'INCIDENT_MANAGE' : 'INCIDENT_CREATE';
+    if (!can(requiredPerm)) { showAccessDenied(); return; }
+
     const modal = document.getElementById("incidentModal");
     const title = document.getElementById("incidentModalTitle");
     const btn = document.getElementById("btnSaveIncident");
@@ -1152,6 +1203,7 @@ async function saveIncident() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        if (response.status === 403) { showAccessDenied(); return; }
         if (!response.ok) {
             const errText = await response.text();
             throw new Error(errText || `HTTP ${response.status}`);

@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></link >
       <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script th:inline="javascript">
     /*<![CDATA[*/
                                                                                    window.USER_PERMISSIONS = /*[[${#authentication.principal.authorities.![authority]}]]*/[];
@@ -708,7 +709,7 @@
                 <span class="nav-text">Reports</span>
               </a>
             </li>
-            <li class="nav-item" id="menu-settings">
+            <li class="nav-item" id="menu-settings" sec:authorize="hasRole('ADMIN') or hasRole('SUPER_ADMIN')">
               <a href="#" class="nav-link" data-page="page-settings">
                 <i class="ph ph-gear"></i>
                 <span class="nav-text">Settings</span>
@@ -1005,7 +1006,8 @@
                   Direct
                   Access</span></h2>
               <div class="quick-actions-layout">
-                <button class="action-box-btn red" onclick="openIncidentModal()">
+                <button class="action-box-btn red" id="qa-create-incident"
+                  sec:authorize="hasAuthority('INCIDENT_CREATE')" onclick="openIncidentModal()">
                   <i class="ph ph-shield-warning"></i>
                   <span>Create Incident</span>
                 </button>
@@ -1017,7 +1019,8 @@
                   <i class="ph ph-chart-bar"></i>
                   <span>Reports</span>
                 </button>
-                <button class="action-box-btn purple" onclick="switchPage('page-users')">
+                <button class="action-box-btn purple" id="qa-users" sec:authorize="hasAuthority('USER_MANAGE')"
+                  onclick="switchPage('page-users')">
                   <i class="ph ph-users"></i>
                   <span>Users</span>
                 </button>
@@ -1104,8 +1107,8 @@
                 <option>Network</option>
                 <option>Database</option>
               </select>
-              <button class="btn-add" onclick="openAddModal()">+ Add
-                Asset</button>
+              <button class="btn-add" id="btnAddAsset" sec:authorize="hasAuthority('ASSET_CREATE')"
+                onclick="openAddModal()">+ Add Asset</button>
             </div>
 
             <div class="table-wrapper">
@@ -1178,7 +1181,8 @@
                 <option>Resolved</option>
                 <option>Closed</option>
               </select>
-              <button class="btn-add" onclick="openIncidentModal()">+ New Incident</button>
+              <button class="btn-add" id="btnAddIncident" sec:authorize="hasAuthority('INCIDENT_CREATE')"
+                onclick="openIncidentModal()">+ New Incident</button>
             </div>
             <div class="table-wrapper">
               <table class="data-table">
@@ -1347,7 +1351,7 @@
         </div>
 
         <!-- ───── USERS PAGE ───── -->
-        <div id="page-users" class="page-section">
+        <div id="page-users" class="page-section" sec:authorize="hasAuthority('USER_MANAGE')">
           <section class="content-header">
             <h1>User Administration & Identity</h1>
           </section>
@@ -1384,7 +1388,7 @@
             <h1>Reports Generation</h1>
           </section>
         </div>
-        <div id="page-settings" class="page-section">
+        <div id="page-settings" class="page-section" sec:authorize="hasRole('ADMIN') or hasRole('SUPER_ADMIN')">
           <section class="content-header">
             <h1>System Settings</h1>
           </section>
