@@ -12,11 +12,16 @@ public class AuditLog {
 
     private LocalDateTime timestamp;
     private String username;
+
+    @Column(columnDefinition = "TEXT")
     private String role;
+
     private String ipAddress;
+
+    @Column(columnDefinition = "TEXT")
     private String deviceBrowser;
     
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String action; // e.g. "Delete Asset"
     
     @Column(columnDefinition = "TEXT")
@@ -25,6 +30,7 @@ public class AuditLog {
     @Column(columnDefinition = "TEXT")
     private String newValue;
     
+    @Column(columnDefinition = "TEXT")
     private String result; // e.g. "SUCCESS", "DENIED"
 
     public AuditLog() {

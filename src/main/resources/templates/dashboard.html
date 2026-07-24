@@ -1117,6 +1117,7 @@
                   <tr>
                     <th>ID</th>
                     <th>Name</th>
+                    <th>IP Address</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>CPU</th>
@@ -1130,7 +1131,7 @@
                 </thead>
                 <tbody id="assetsTbody">
                   <tr class="loading-row">
-                    <td colspan="11">Loading assets…</td>
+                    <td colspan="12">Loading assets…</td>
                   </tr>
                 </tbody>
               </table>
@@ -1234,12 +1235,91 @@
           </div>
         </div>
 
+        <!-- ───── INFRASTRUCTURE PAGE ───── -->
+        <div id="page-infrastructure" class="page-section">
+          <section class="content-header">
+            <h1>Infrastructure Topology & Live Telemetry</h1>
+          </section>
+
+          <section class="live-metrics-grid" style="margin-bottom:20px;">
+            <div class="live-metric-card">
+              <span class="lm-label">CPU Clusters</span>
+              <span class="lm-val" id="infra-cpu">--%</span>
+            </div>
+            <div class="live-metric-card">
+              <span class="lm-label">Memory Pools</span>
+              <span class="lm-val" id="infra-mem">--%</span>
+            </div>
+            <div class="live-metric-card">
+              <span class="lm-label">Cluster IO</span>
+              <span class="lm-val" id="infra-net">-- GB/s</span>
+            </div>
+            <div class="live-metric-card">
+              <span class="lm-label">Cloud Instances</span>
+              <span class="lm-val" id="infra-instances">3 Active</span>
+            </div>
+            <div class="live-metric-card alert" id="infra-hsm-card">
+              <span class="lm-label">Vault HSM Status</span>
+              <span class="lm-val" id="infra-hsm">WARNING</span>
+            </div>
+            <div class="live-metric-card">
+              <span class="lm-label">DB Connection Pool</span>
+              <span class="lm-val" id="infra-db">10/100</span>
+            </div>
+          </section>
+
+          <div class="panel-card">
+            <h2 class="panel-title" style="margin-bottom:15px;">Physical & Logical Cloud Topology</h2>
+            <div class="topology-container">
+              <div class="topo-layer">
+                <div class="topo-node outline">Internet Gateway</div>
+              </div>
+              <div class="topo-layer">
+                <div class="topo-arrow"><i class="ph ph-arrow-down"></i></div>
+              </div>
+              <div class="topo-layer">
+                <div class="topo-node outline">Primary Load Balancer</div>
+              </div>
+              <div class="topo-layer">
+                <div class="topo-arrow"><i class="ph ph-arrow-down"></i></div>
+              </div>
+              <div class="topo-layer row-layer">
+                <!-- AWS Group -->
+                <div class="topo-group cloud-aws">
+                  AWS EC2
+                  <div style="display:flex; gap:6px; margin-top:8px;">
+                    <span class="topo-node status-healthy" style="font-size:0.7rem; padding:4px 8px;">APP-01</span>
+                    <span class="topo-node status-healthy" style="font-size:0.7rem; padding:4px 8px;">APP-02</span>
+                  </div>
+                </div>
+                <!-- GCP Group -->
+                <div class="topo-group cloud-gcp">
+                  GCP GKE
+                  <div style="display:flex; gap:6px; margin-top:8px;">
+                    <span class="topo-node status-critical" style="font-size:0.7rem; padding:4px 8px;">K8S-01 <span
+                        class="pulsing-alert-dot"></span></span>
+                    <span class="topo-node status-healthy" style="font-size:0.7rem; padding:4px 8px;">K8S-02</span>
+                  </div>
+                </div>
+                <!-- Azure Group -->
+                <div class="topo-group cloud-azure">
+                  Azure Database
+                  <div style="display:flex; gap:6px; margin-top:8px;">
+                    <span class="topo-node status-warning" style="font-size:0.7rem; padding:4px 8px;">PGSQL-DB</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- ───── VULNERABILITIES PAGE ───── -->
         <div id="page-vulnerabilities" class="page-section">
           <section class="content-header">
             <h1>Vulnerability Management</h1>
           </section>
           <div class="panel-card">
+            <h2 class="panel-title" style="margin-bottom:12px;">Active Vulnerabilities Tracker</h2>
             <table class="data-table">
               <thead>
                 <tr>
@@ -1251,22 +1331,9 @@
                   <th>Remediation</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>CVE-2023-4863</td>
-                  <td><span style="color:var(--danger-red); font-weight:700;">8.8 (High)</span></td>
-                  <td>92</td>
-                  <td>14 Servers, 2 Clusters</td>
-                  <td>Pending</td>
-                  <td><button class="btn-secondary">Deploy Patch</button></td>
-                </tr>
-                <tr>
-                  <td>CVE-2023-5363</td>
-                  <td><span style="color:var(--warning-amber); font-weight:700;">6.5 (Med)</span></td>
-                  <td>65</td>
-                  <td>3 Firewalls</td>
-                  <td>Scheduled</td>
-                  <td><button class="btn-secondary">View Steps</button></td>
+              <tbody id="vulnerabilitiesTbody">
+                <tr class="loading-row">
+                  <td colspan="6">Loading vulnerabilities…</td>
                 </tr>
               </tbody>
             </table>
@@ -1301,31 +1368,30 @@
             </div>
           </section>
           <div class="panel-card">
-            <div class="toolbar">
-              <input type="search" placeholder="Search User, IP, Action..." style="width:250px;">
-              <button class="btn-secondary">Export Logs</button>
+            <div class="toolbar" style="margin-bottom:15px; display:flex; gap:10px;">
+              <input type="search" id="auditLogSearch" placeholder="Search User, IP, Action..."
+                style="width:250px; padding:6px 12px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-inset);"
+                oninput="filterAuditLogs()">
             </div>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>User/Role</th>
-                  <th>IP & Device</th>
-                  <th>Action</th>
-                  <th>Outcome</th>
-                </tr>
-              </thead>
-              <tbody id="auditTableBody">
-                <tr>
-                  <td>2026-07-16 12:00:22</td>
-                  <td>admin (DevSecOps)</td>
-                  <td>10.0.0.9 (Chrome, Win)</td>
-                  <td>Quarantine Asset</td>
-                  <td><span class="badge badge-status resolved"
-                      style="border:none;background:none;color:var(--success-green);padding:0;">Success</span></td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Roles Mapped</th>
+                    <th>IP & Device</th>
+                    <th>Action</th>
+                    <th>Outcome</th>
+                  </tr>
+                </thead>
+                <tbody id="auditTableBody">
+                  <tr class="loading-row">
+                    <td colspan="6">Loading audit trail…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -1334,19 +1400,29 @@
           <section class="content-header">
             <h1>Compliance Center</h1>
           </section>
-          <div class="stats-grid" style="margin-bottom:20px;">
-            <div class="stat-card">
-              <div class="stat-label">ISO 27001 Score</div>
-              <div class="stat-value" style="color:var(--success-green);">94%</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">SOC 2 Controls</div>
-              <div class="stat-value">Passed</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">PCI DSS</div>
-              <div class="stat-value" style="color:var(--warning-amber);">Review</div>
-            </div>
+          <div class="stats-grid" style="margin-bottom:20px;" id="complianceStatsGrid">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div class="panel-card">
+            <h2 class="panel-title" style="margin-bottom:12px;">Mapped Regulatory Policy Control Checks</h2>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Control ID</th>
+                  <th>Framework</th>
+                  <th>Control Name</th>
+                  <th>Status</th>
+                  <th>Audited By</th>
+                  <th>Checked Time</th>
+                </tr>
+              </thead>
+              <tbody id="complianceTableBody">
+                <tr class="loading-row">
+                  <td colspan="6">Checking compliance matrices…</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -1356,47 +1432,124 @@
             <h1>User Administration & Identity</h1>
           </section>
           <div class="panel-card">
-            <button class="btn-add" style="margin-bottom: 20px;">+ Create User</button>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>MFA Status</th>
-                  <th>Last Login</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>John Doe</td>
-                  <td>Admin</td>
-                  <td><span class="badge badge-info">Active</span></td>
-                  <td>Enabled</td>
-                  <td>2h ago</td>
-                  <td><button class="tbl-action">Manage</button></td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTbody">
+                  <tr class="loading-row">
+                    <td colspan="6">Loading user records…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <!-- ───── REPORTS & SETTINGS PLACEHOLDERS ───── -->
+        <!-- ───── REPORTS PAGE ───── -->
         <div id="page-reports" class="page-section">
           <section class="content-header">
-            <h1>Reports Generation</h1>
+            <h1>SOC Compliance & System Reports</h1>
           </section>
-        </div>
-        <div id="page-settings" class="page-section" sec:authorize="hasRole('ADMIN') or hasRole('SUPER_ADMIN')">
-          <section class="content-header">
-            <h1>System Settings</h1>
-          </section>
+          <div class="panel-card" style="max-width:600px; margin:auto;">
+            <h2 class="panel-title" style="margin-bottom:15px;">Generate Summary Report</h2>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <label
+                  style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:5px; color:var(--text-secondary);">REPORT
+                  TYPE</label>
+                <select id="report-type"
+                  style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-inset); color:var(--text-primary);">
+                  <option value="dashboard">Executive Dashboard Summary</option>
+                  <option value="assets">IT Assets Log Report</option>
+                  <option value="incidents">Security Incidents History</option>
+                  <option value="audit">System Access Audit Trail</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:5px; color:var(--text-secondary);">FORMAT</label>
+                <select id="report-format"
+                  style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-inset); color:var(--text-primary);">
+                  <option value="pdf">Vector PDF (.pdf)</option>
+                  <option value="csv">Structured CSV Dataset (.csv)</option>
+                </select>
+              </div>
+              <button class="btn" style="margin-top:10px;" onclick="triggerReportGeneration()">Generate & View
+                Report</button>
+            </div>
+          </div>
         </div>
 
-        <!-- ───── DEVSECOPS PAGE ───── -->
-        <!-- Hidden/Deprecated in new menu structure but kept for DOM safety if needed -->
-        <div id="page-devsecops" class="page-section"></div>
+        <!-- ───── SETTINGS PAGE ───── -->
+        <div id="page-settings" class="page-section" sec:authorize="hasRole('ADMIN') or hasRole('SUPER_ADMIN')">
+          <section class="content-header">
+            <h1>Enterprise Settings & Integration</h1>
+          </section>
+          <div class="panel-card" style="max-width:800px; margin:auto;">
+            <h2 class="panel-title" style="margin-bottom:15px;">General System Configuration</h2>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>Audit Log Retention</strong>
+                  <div style="font-size:0.8rem; color:var(--text-muted);">Configure keeping audit trail logs database
+                    entries</div>
+                </div>
+                <select
+                  style="padding:6px 12px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-inset); color:var(--text-primary);">
+                  <option>90 Days</option>
+                  <option>180 Days</option>
+                  <option>365 Days</option>
+                  <option>Forever</option>
+                </select>
+              </div>
+              <hr style="border:0; border-top:1px solid var(--border-color);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>Debug Level Monitoring</strong>
+                  <div style="font-size:0.8rem; color:var(--text-muted);">Adjust log verbosity levels on stdout stream
+                  </div>
+                </div>
+                <select
+                  style="padding:6px 12px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-inset); color:var(--text-primary);">
+                  <option>INFO</option>
+                  <option>DEBUG</option>
+                  <option>TRACE</option>
+                  <option>ERROR</option>
+                </select>
+              </div>
+              <hr style="border:0; border-top:1px solid var(--border-color);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>Telemetry Simulator Speed</strong>
+                  <div style="font-size:0.8rem; color:var(--text-muted);">Changes system health metrics refresh rate
+                  </div>
+                </div>
+                <select
+                  style="padding:6px 12px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-inset); color:var(--text-primary);">
+                  <option>Fast (2s)</option>
+                  <option>Medium (5s)</option>
+                  <option>Slow (10s)</option>
+                </select>
+              </div>
+              <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                <button class="btn" style="width:auto; padding:8px 24px;"
+                  onclick="showToast('Settings saved successfully.')">Save Settings</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ───── DEVSECOPS PAGE ───── -->
+          <!-- Hidden/Deprecated in new menu structure but kept for DOM safety if needed -->
+          <div id="page-devsecops" class="page-section"></div>
 
       </main>
     </div>

@@ -779,6 +779,7 @@ select.form-input {
   grid-column: 2;
   background: var(--bg-page);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px 20px;
 }
 
@@ -1656,7 +1657,7 @@ select.form-input {
   margin-bottom: 20px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .kpi-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -1789,36 +1790,17 @@ select.form-input {
 }
 
 .tables-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   margin-bottom: 12px;
-  grid-auto-rows: 1fr;
-}
-
-@media (max-width: 1024px) {
-  .tables-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .bottom-control-grid {
-  display: grid;
-  grid-template-columns: 2fr 1.2fr 1.1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   margin-bottom: 12px;
-}
-
-@media (max-width: 1200px) {
-  .bottom-control-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .bottom-control-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .system-health-grid {

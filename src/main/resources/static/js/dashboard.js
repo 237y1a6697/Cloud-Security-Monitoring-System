@@ -115,6 +115,12 @@ function switchPage(pageId) {
 
 function handlePageLoad(pageId) {
 
+    // Stop active telemetry interval if page switches
+    if (window._telemetryInterval) {
+        clearInterval(window._telemetryInterval);
+        window._telemetryInterval = null;
+    }
+
     if (pageId === 'page-dashboard') {
         loadDashboardStats();
     }
@@ -129,6 +135,24 @@ function handlePageLoad(pageId) {
 
     if (pageId === 'page-audit') {
         loadAuditLogs();
+    }
+
+    if (pageId === 'page-infrastructure') {
+        loadInfrastructure();
+        // Poll every 4 seconds
+        window._telemetryInterval = setInterval(loadInfrastructure, 4000);
+    }
+
+    if (pageId === 'page-vulnerabilities') {
+        loadVulnerabilities();
+    }
+
+    if (pageId === 'page-compliance') {
+        loadCompliance();
+    }
+
+    if (pageId === 'page-users') {
+        loadUsers();
     }
 
 }
@@ -1009,21 +1033,34 @@ async function loadUsers() {
         if (!tbody) return;
 
         if (!users.length) {
-            tbody.innerHTML = '<tr><td colspan="5">No users found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">No users found.</td></tr>';
             return;
         }
 
-        tbody.innerHTML = users.map(u => `
+        tbody.innerHTML = users.map(u => {
+            // Extract primary role name from roles array (ROLE_ADMIN → Admin, etc.)
+            const primaryRole = (u.roles && u.roles.length > 0)
+                ? (u.roles[0].name || u.roles[0])
+                : 'Unknown';
+            const roleLabel = String(primaryRole).replace(/^ROLE_/, '').replace(/_/g, ' ');
+            const roleBadgeClass = roleLabel.toUpperCase().includes('ADMIN') || roleLabel.toUpperCase().includes('SUPER')
+                ? 'badge-critical'
+                : roleLabel.toUpperCase().includes('ANALYST') || roleLabel.toUpperCase().includes('ENGINEER')
+                    ? 'badge-warning'
+                    : 'badge-info';
+            return `
         <tr>
           <td>${u.id}</td>
           <td><strong>${escHtml(u.username || '')}</strong></td>
           <td>${escHtml(u.email || '-')}</td>
+          <td><span class="badge ${roleBadgeClass}" style="text-transform:capitalize;">${escHtml(roleLabel)}</span></td>
           <td><span class="badge ${u.enabled ? 'badge-status ok' : 'badge-status critical'}">${u.enabled ? 'Active' : 'Disabled'}</span></td>
           <td>
             ${(window.USER_PERMISSIONS || []).includes('USER_MANAGE') ? `<button class="tbl-action" style="color:var(--error-red);" onclick="deleteUser(${u.id})">Delete</button>` : ''}
           </td>
         </tr>
-      `).join('');
+      `;
+        }).join('');
     } catch (err) {
         console.error('Failed to load users:', err);
     }
@@ -1294,3 +1331,296 @@ document.addEventListener("DOMContentLoaded", function () {
         confirmBtn.addEventListener("click", deleteIncident);
     }
 });
+
+// Telemetry & Infrastructure loading
+async function loadInfrastructure() {
+    try {
+        const res = await fetch('/api/infrastructure/telemetry');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        setText('infra-cpu', data.cpuCount);
+        setText('infra-mem', data.memoryPoolInfo);
+        setText('infra-net', data.networkIoRate);
+        setText('infra-instances', data.activeInstances);
+        setText('infra-hsm', data.vaultHsmStatus);
+        setText('infra-db', data.dbConnections);
+
+        const hsmCard = document.getElementById('infra-hsm-card');
+        if (hsmCard) {
+            if (data.vaultHsmStatus === 'OK') {
+                hsmCard.classList.remove('alert');
+            } else {
+                hsmCard.classList.add('alert');
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load infrastructure telemetry:', err);
+    }
+}
+
+// Vulnerabilities loading & Patch Deploying
+async function loadVulnerabilities() {
+    try {
+        const tbody = document.getElementById('vulnerabilitiesTbody');
+        if (!tbody) return;
+
+        const res = await fetch('/api/vulnerabilities');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const vulns = await res.json();
+
+        if (!vulns.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No vulnerabilities found.</td></tr>';
+            return;
+        }
+
+        const canManage = (window.USER_PERMISSIONS || []).includes('VULN_MANAGE');
+
+        tbody.innerHTML = vulns.map(v => {
+            const cvssColor = v.cvss >= 8.0 ? 'var(--danger-red)' : v.cvss >= 6.0 ? 'var(--warning-amber)' : 'var(--text-secondary)';
+            return `
+                <tr>
+                    <td><strong>${escHtml(v.cveId || '—')}</strong></td>
+                    <td><span style="color:${cvssColor}; font-weight:700;">${v.cvss || '—'}</span></td>
+                    <td>${v.riskScore || '—'}</td>
+                    <td>${escHtml(v.affectedAssets || '—')}</td>
+                    <td>
+                        <span class="badge ${v.patchStatus === 'Patched' ? 'badge-status ok' : 'badge-status warning'}">${escHtml(v.patchStatus || '—')}</span>
+                    </td>
+                    <td>
+                        ${v.patchStatus !== 'Patched' && canManage
+                    ? `<button class="btn-secondary" onclick="deployPatch(${v.id})">Deploy Patch</button>`
+                    : `<code>${escHtml(v.remediation || 'Mitigated')}</code>`}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Failed to load vulnerabilities:', err);
+    }
+}
+
+async function deployPatch(id) {
+    try {
+        Swal.fire({
+            title: 'Deploying Patch',
+            text: 'Deploying CVE remediation patch to affected assets...',
+            icon: 'info',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const res = await fetch(`/api/vulnerabilities/${id}/patch`, { method: 'POST' });
+        if (!res.ok) {
+            if (res.status === 403) throw new Error('Access Denied: You do not have permissions to deploy patches');
+            throw new Error(`HTTP ${res.status}`);
+        }
+
+        Swal.fire({
+            title: 'Success!',
+            text: 'Patch deployed successfully. CVE status updated.',
+            icon: 'success'
+        });
+        loadVulnerabilities();
+    } catch (err) {
+        Swal.fire({
+            title: 'Failed',
+            text: err.message,
+            icon: 'error'
+        });
+    }
+}
+
+// Compliance standards & control checks
+async function loadCompliance() {
+    try {
+        const statsGrid = document.getElementById('complianceStatsGrid');
+        const resStats = await fetch('/api/compliance/standards');
+        if (resStats.ok) {
+            const standards = await resStats.json();
+            if (statsGrid) {
+                statsGrid.innerHTML = standards.map(s => {
+                    const statusColor = s.status === 'Compliant' ? 'var(--success-green)' : 'var(--warning-amber)';
+                    return `
+                        <div class="stat-card">
+                          <div class="stat-label">${escHtml(s.name)}</div>
+                          <div class="stat-value" style="color:${statusColor};">${s.score}%</div>
+                          <div class="stat-sub">${s.passed} of ${s.total} controls passed (${s.status})</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        const tbody = document.getElementById('complianceTableBody');
+        if (!tbody) return;
+
+        const resControls = await fetch('/api/compliance/controls');
+        if (resControls.ok) {
+            const controls = await resControls.json();
+            tbody.innerHTML = controls.map(c => {
+                const badgeClass = c.status === 'PASS' ? 'badge-status ok' : 'badge-status warning';
+                return `
+                    <tr>
+                        <td><code>${escHtml(c.id)}</code></td>
+                        <td><strong>${escHtml(c.framework)}</strong></td>
+                        <td>${escHtml(c.control)}</td>
+                        <td><span class="badge ${badgeClass}">${escHtml(c.status)}</span></td>
+                        <td>${escHtml(c.checkedBy)}</td>
+                        <td>${escHtml(c.lastAudited)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('Failed to load compliance details:', err);
+    }
+}
+
+// Full audit logs loading with logic helper
+let _allAuditLogs = [];
+async function loadAuditLogs() {
+    try {
+        const tbody = document.getElementById('auditTableBody');
+        if (!tbody) return;
+
+        const resLogs = await fetch('/api/audit-logs/all');
+        if (!resLogs.ok) throw new Error(`HTTP ${resLogs.status}`);
+        _allAuditLogs = await resLogs.json();
+
+        const resStats = await fetch('/api/audit-logs/stats');
+        if (resStats.ok) {
+            const stats = await resStats.json();
+            setText('audit-total', stats.totalLogs);
+            setText('audit-success', stats.successCount);
+            setText('audit-failed', stats.failedCount);
+            setText('audit-denied', stats.deniedCount);
+        }
+
+        renderAuditLogs(_allAuditLogs);
+    } catch (err) {
+        console.error('Failed to load audit logs:', err);
+    }
+}
+
+function renderAuditLogs(logs) {
+    const tbody = document.getElementById('auditTableBody');
+    if (!tbody) return;
+
+    if (!logs.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No audit records found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = logs.map(l => {
+        const timestamp = l.timestamp ? new Date(l.timestamp).toLocaleString() : '—';
+        const outcomeClass = l.result === 'SUCCESS' ? 'badge-status ok' : l.result === 'DENIED' ? 'badge-status warning' : 'badge-status critical';
+        return `
+            <tr>
+                <td style="font-size:0.8rem; color:var(--text-muted);">${timestamp}</td>
+                <td><strong>${escHtml(l.username || '—')}</strong></td>
+                <td><span style="font-size:0.75rem; color:var(--text-secondary);">${escHtml(l.role || '—')}</span></td>
+                <td style="font-size:0.78rem;">${escHtml(l.ipAddress || '—')} <span style="color:var(--text-muted); font-size:0.7rem;">(${escHtml(l.deviceBrowser || '—')})</span></td>
+                <td><strong>${escHtml(l.action || '—')}</strong></td>
+                <td><span class="badge ${outcomeClass}">${escHtml(l.result || '—')}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filterAuditLogs() {
+    const search = (document.getElementById('auditLogSearch').value || '').toLowerCase();
+    const filtered = _allAuditLogs.filter(l => {
+        return (l.username || '').toLowerCase().includes(search) ||
+            (l.ipAddress || '').toLowerCase().includes(search) ||
+            (l.action || '').toLowerCase().includes(search) ||
+            (l.result || '').toLowerCase().includes(search) ||
+            (l.role || '').toLowerCase().includes(search);
+    });
+    renderAuditLogs(filtered);
+}
+
+// Report download and preview generator using html2pdf
+function triggerReportGeneration() {
+    const reportType = document.getElementById('report-type').value;
+    const reportFormat = document.getElementById('report-format').value;
+
+    Swal.fire({
+        title: 'Generating Report',
+        text: `Compiling ${reportType} report into ${reportFormat}...`,
+        icon: 'info',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    setTimeout(() => {
+        if (reportFormat === 'csv') {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            if (reportType === 'assets') {
+                csvContent += "ID,Name,IP Address,Type,Status\n1,SRV-PROD-01,10.0.0.1,Server,Healthy\n2,DB-PROD-01,10.0.0.2,Database,Healthy\n";
+            } else if (reportType === 'incidents') {
+                csvContent += "Severity,Title,Status,AssignedTo\nCritical,Brute-force in progress,Investigating,DevSecOps\n";
+            } else {
+                csvContent += "Timestamp,User,Action,Result\n2026-07-24 11:00:00,admin,Quarantine Asset,SUCCESS\n";
+            }
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `sentinelcore_${reportType}_report.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire('Generated!', 'Your CSV report download has started.', 'success');
+        } else {
+            // Generate PDF using html2pdf from visual container mockup
+            const element = document.createElement('div');
+            element.style.padding = '40px';
+            element.style.background = '#ffffff';
+            element.style.color = '#1a1f2e';
+            element.innerHTML = `
+                <div style="text-align:center; margin-bottom: 30px;">
+                    <h1 style="color:#C62828; margin:0;">SentinelCore SecureOps Portal</h1>
+                    <h3 style="margin-top:5px; color:#4a5568;">Executive Summary Report: ${reportType.toUpperCase()}</h3>
+                    <p style="font-size:0.8rem; color:#8a94a6;">Generated on: ${new Date().toLocaleString()} | Operator: ${window.CURRENT_USER}</p>
+                </div>
+                <hr style="border:0; border-top:1px solid #e2e6ee; margin-bottom: 20px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f7f8fb; text-align:left;">
+                            <th style="padding:10px; border-bottom:2px solid #e2e6ee;">Detail Field</th>
+                            <th style="padding:10px; border-bottom:2px solid #e2e6ee;">Operational Status Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding:10px; border-bottom:1px solid #e2e6ee;">Active Alerts count</td>
+                            <td style="padding:10px; border-bottom:1px solid #e2e6ee;">Normal compliance check (OK)</td>
+                        </tr>
+                        <tr style="background:#f7f8fb;">
+                            <td style="padding:10px; border-bottom:1px solid #e2e6ee;">Critical vulnerability status</td>
+                            <td style="padding:10px; border-bottom:1px solid #e2e6ee;">0 Unmitigated risk exposures</td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+
+            const opt = {
+                margin: 1,
+                filename: `sentinelcore_${reportType}_report.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                Swal.fire('Generated!', 'Your PDF report download has started.', 'success');
+            }).catch(e => {
+                console.error(e);
+                Swal.fire('Failed', 'Report rendering failed.', 'error');
+            });
+        }
+    }, 1500);
+}

@@ -45,7 +45,15 @@ public class AuditAspect {
         if (attrs != null) {
             HttpServletRequest request = attrs.getRequest();
             ipAddress = request.getRemoteAddr();
-            userAgent = request.getHeader("User-Agent");
+            String rawUserAgent = request.getHeader("User-Agent");
+            // Truncate to 250 chars to fit varchar(255) DB column safely
+            userAgent = rawUserAgent != null && rawUserAgent.length() > 250
+                    ? rawUserAgent.substring(0, 250)
+                    : rawUserAgent;
+        }
+        // Also truncate roles string in case it exceeds 250 chars
+        if (roles != null && roles.length() > 250) {
+            roles = roles.substring(0, 250);
         }
 
         // We can capture arguments for prev/new values if needed, simpler version captures action name.
@@ -62,7 +70,7 @@ public class AuditAspect {
             log.setUsername(username);
             log.setRole(roles);
             log.setIpAddress(ipAddress);
-            log.setDeviceBrowser(userAgent.length() > 255 ? userAgent.substring(0, 255) : userAgent);
+            log.setDeviceBrowser(userAgent);
             log.setAction(auditable.action());
             log.setResult(outcome);
             
