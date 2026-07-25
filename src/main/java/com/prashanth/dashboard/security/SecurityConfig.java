@@ -44,7 +44,7 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/fonts/**").permitAll()
-                .requestMatchers("/login", "/register", "/access-denied").permitAll()
+                .requestMatchers("/login", "/register", "/access-denied", "/error").permitAll()
                 .requestMatchers("/admin/**").hasAnyRole("SUPER_ADMIN", "ADMIN")
                 .anyRequest().authenticated()
             )
@@ -65,17 +65,9 @@ public class SecurityConfig {
             .logout(logout -> logout
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "POST"))
                 .logoutSuccessHandler((request, response, authentication) -> {
-                    String accept = request.getHeader("Accept");
-                    String referer = request.getHeader("Referer");
-                    boolean isSpa = (accept != null && accept.contains("application/json")) ||
-                                    (referer != null && referer.contains("5173"));
-                    if (isSpa) {
-                        response.setStatus(HttpServletResponse.SC_OK);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"success\": true}");
-                    } else {
-                        response.sendRedirect("/login?logout=true");
-                    }
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"success\": true}");
                 })
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID", "remember-me")
@@ -92,26 +84,14 @@ public class SecurityConfig {
             )
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
-                    String referer = request.getHeader("Referer");
-                    boolean isSpa = (referer != null && referer.contains("5173"));
-                    if (request.getRequestURI().startsWith("/api/") || isSpa) {
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\": \"401 Unauthorized — please log in\"}");
-                    } else {
-                        response.sendRedirect("/login");
-                    }
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"401 Unauthorized — please log in\"}");
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    String referer = request.getHeader("Referer");
-                    boolean isSpa = (referer != null && referer.contains("5173"));
-                    if (request.getRequestURI().startsWith("/api/") || isSpa) {
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\": \"403 Access Denied — insufficient permissions\"}");
-                    } else {
-                        response.sendRedirect("/access-denied");
-                    }
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"403 Access Denied — insufficient permissions\"}");
                 })
             );
 
@@ -120,47 +100,14 @@ public class SecurityConfig {
 
     private AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
-            String accept = request.getHeader("Accept");
-            String referer = request.getHeader("Referer");
-            boolean isSpa = (accept != null && accept.contains("application/json")) ||
-                            (referer != null && referer.contains("5173"));
-            if (isSpa) {
-                response.setStatus(HttpServletResponse.SC_OK);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"success\": true}");
-            } else {
-                String redirect = determineTargetUrl(authentication.getAuthorities());
-                response.sendRedirect(redirect);
-            }
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"success\": true}");
         };
-    }
-
-    private String determineTargetUrl(Collection<? extends GrantedAuthority> authorities) {
-        for (GrantedAuthority auth : authorities) {
-            switch (auth.getAuthority()) {
-                case "ROLE_SUPER_ADMIN":
-                case "ROLE_ADMIN":
-                    return "/dashboard";
-                case "ROLE_SOC_MANAGER":
-                case "ROLE_SECURITY_ANALYST":
-                case "ROLE_INCIDENT_RESPONDER":
-                case "ROLE_DEVSECOPS":
-                case "ROLE_INFRA_ENGINEER":
-                    return "/dashboard";
-                case "ROLE_AUDITOR":
-                case "ROLE_VIEWER":
-                    return "/dashboard";
-            }
-        }
-        return "/dashboard";
     }
 
     private AuthenticationFailureHandler failureHandler() {
         return (request, response, exception) -> {
-            String accept = request.getHeader("Accept");
-            String referer = request.getHeader("Referer");
-            boolean isSpa = (accept != null && accept.contains("application/json")) ||
-                            (referer != null && referer.contains("5173"));
             String errorParam;
             if (exception instanceof LockedException) {
                 errorParam = "locked";
@@ -170,14 +117,9 @@ public class SecurityConfig {
             } else {
                 errorParam = "true";
             }
-
-            if (isSpa) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\": \"" + errorParam + "\"}");
-            } else {
-                response.sendRedirect("/login?error=" + errorParam);
-            }
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"" + errorParam + "\"}");
         };
     }
 }

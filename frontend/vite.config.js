@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const htmlBypass = (req) => {
+  if (req.headers.accept && req.headers.accept.includes('text/html')) {
+    return req.url;
+  }
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -17,6 +23,7 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
+        bypass: htmlBypass,
       },
       '/logout': {
         target: 'http://localhost:8081',
@@ -27,11 +34,13 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
+        bypass: htmlBypass,
       },
       '/profile': {
         target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
+        bypass: htmlBypass,
       },
     },
   },

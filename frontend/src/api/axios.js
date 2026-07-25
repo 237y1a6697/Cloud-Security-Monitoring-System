@@ -68,6 +68,8 @@ axiosInstance.interceptors.response.use(
             if (!isLoginPage && !isSessionCheck) {
                 window.location.href = '/login?expired';
             }
+        } else if (error.response?.status === 403) {
+            window.location.href = '/403';
         }
         return Promise.reject(error);
     }
