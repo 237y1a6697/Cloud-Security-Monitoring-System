@@ -14,6 +14,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,7 +64,19 @@ public class SecurityConfig {
             )
             .logout(logout -> logout
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "POST"))
-                .logoutSuccessUrl("/login?logout=true")
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    String accept = request.getHeader("Accept");
+                    String referer = request.getHeader("Referer");
+                    boolean isSpa = (accept != null && accept.contains("application/json")) ||
+                                    (referer != null && referer.contains("5173"));
+                    if (isSpa) {
+                        response.setStatus(HttpServletResponse.SC_OK);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"success\": true}");
+                    } else {
+                        response.sendRedirect("/login?logout=true");
+                    }
+                })
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID", "remember-me")
                 .permitAll()
@@ -72,12 +86,16 @@ public class SecurityConfig {
                 .expiredUrl("/login?expired=true")
             )
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**") // Keep CSRF off for REST API
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                .ignoringRequestMatchers("/api/**", "/login", "/logout", "/register") // No CSRF for REST + SPA auth endpoints
             )
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
-                    if (request.getRequestURI().startsWith("/api/")) {
-                        response.setStatus(401);
+                    String referer = request.getHeader("Referer");
+                    boolean isSpa = (referer != null && referer.contains("5173"));
+                    if (request.getRequestURI().startsWith("/api/") || isSpa) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json");
                         response.getWriter().write("{\"error\": \"401 Unauthorized — please log in\"}");
                     } else {
@@ -85,8 +103,10 @@ public class SecurityConfig {
                     }
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    if (request.getRequestURI().startsWith("/api/")) {
-                        response.setStatus(403);
+                    String referer = request.getHeader("Referer");
+                    boolean isSpa = (referer != null && referer.contains("5173"));
+                    if (request.getRequestURI().startsWith("/api/") || isSpa) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         response.setContentType("application/json");
                         response.getWriter().write("{\"error\": \"403 Access Denied — insufficient permissions\"}");
                     } else {
@@ -98,11 +118,20 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** Role-based redirect after successful login. */
     private AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
-            String redirect = determineTargetUrl(authentication.getAuthorities());
-            response.sendRedirect(redirect);
+            String accept = request.getHeader("Accept");
+            String referer = request.getHeader("Referer");
+            boolean isSpa = (accept != null && accept.contains("application/json")) ||
+                            (referer != null && referer.contains("5173"));
+            if (isSpa) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"success\": true}");
+            } else {
+                String redirect = determineTargetUrl(authentication.getAuthorities());
+                response.sendRedirect(redirect);
+            }
         };
     }
 
@@ -128,6 +157,10 @@ public class SecurityConfig {
 
     private AuthenticationFailureHandler failureHandler() {
         return (request, response, exception) -> {
+            String accept = request.getHeader("Accept");
+            String referer = request.getHeader("Referer");
+            boolean isSpa = (accept != null && accept.contains("application/json")) ||
+                            (referer != null && referer.contains("5173"));
             String errorParam;
             if (exception instanceof LockedException) {
                 errorParam = "locked";
@@ -137,7 +170,14 @@ public class SecurityConfig {
             } else {
                 errorParam = "true";
             }
-            response.sendRedirect("/login?error=" + errorParam);
+
+            if (isSpa) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"" + errorParam + "\"}");
+            } else {
+                response.sendRedirect("/login?error=" + errorParam);
+            }
         };
     }
 }
