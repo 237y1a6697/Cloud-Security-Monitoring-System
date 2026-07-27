@@ -43,6 +43,31 @@ public class User {
     @Column
     private LocalDateTime lastLogin;
 
+    @Column
+    private String designation;
+
+    @Column
+    private String department;
+
+    @Column
+    private String employeeId;
+
+    @Column
+    private String theme;
+
+    @Column
+    private String notifications;
+
+    @Column
+    private String language;
+
+    @Column
+    private String timezone;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String avatar;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_roles",
@@ -83,6 +108,30 @@ public class User {
 
     public String getOrganization() { return organization; }
     public void setOrganization(String organization) { this.organization = organization; }
+
+    public String getDesignation() { return designation; }
+    public void setDesignation(String designation) { this.designation = designation; }
+
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+
+    public String getEmployeeId() { return employeeId; }
+    public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
+
+    public String getTheme() { return theme; }
+    public void setTheme(String theme) { this.theme = theme; }
+
+    public String getNotifications() { return notifications; }
+    public void setNotifications(String notifications) { this.notifications = notifications; }
+
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
+
+    public String getTimezone() { return timezone; }
+    public void setTimezone(String timezone) { this.timezone = timezone; }
+
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }

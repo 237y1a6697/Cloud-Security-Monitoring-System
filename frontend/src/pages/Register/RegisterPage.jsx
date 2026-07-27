@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService.js';
+import { useToast } from '../../components/common/Toast/Toast.jsx';
 import logo from '../../assets/logo.svg';
 import '../../styles/login.css';
 
@@ -36,6 +37,7 @@ function computeStrength(val) {
 
 export default function RegisterPage() {
     const navigate = useNavigate();
+    const showToast = useToast();
 
     const [form, setForm] = useState({
         firstName: '', lastName: '', username: '', email: '',
@@ -58,19 +60,27 @@ export default function RegisterPage() {
         setSuccess('');
 
         if (!form.username || !form.password || !form.role) {
-            setError('Username, password, and role are required.');
+            const msg = 'Username, password, and role are required.';
+            setError(msg);
+            showToast(msg, 'error');
             return;
         }
         if (form.password !== form.confirmPassword) {
-            setError('Passwords do not match.');
+            const msg = 'Passwords do not match.';
+            setError(msg);
+            showToast(msg, 'error');
             return;
         }
         if (form.password.length < 6) {
-            setError('Password must be at least 6 characters.');
+            const msg = 'Password must be at least 6 characters.';
+            setError(msg);
+            showToast(msg, 'error');
             return;
         }
         if (!agreed) {
-            setError('You must agree to the Terms of Service.');
+            const msg = 'You must agree to the Terms of Service.';
+            setError(msg);
+            showToast(msg, 'error');
             return;
         }
 
@@ -86,13 +96,17 @@ export default function RegisterPage() {
                 organization: form.organization,
                 role: form.role,
             });
+            showToast('Account created successfully!', 'success');
             // Redirect to /login with ?registered flag — mirrors Thymeleaf redirect
             navigate('/login?registered', { replace: true });
         } catch (err) {
             const msg = err?.response?.data?.message
+                || err?.response?.data?.error
                 || err?.response?.data
-                || 'Registration failed. Username may already be taken.';
-            setError(typeof msg === 'string' ? msg : 'Registration failed. Please try again.');
+                || 'Registration failed. Please try again.';
+            const processedMsg = typeof msg === 'string' ? msg : 'Registration failed. Please try again.';
+            setError(processedMsg);
+            showToast(processedMsg, 'error');
         } finally {
             setLoading(false);
         }

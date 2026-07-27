@@ -40,6 +40,9 @@ const userService = {
 
     /** Permanently delete a user account (USER_MANAGE) */
     delete: (id) => axiosInstance.delete(`/api/users/${id}`),
+
+    /** Update personal profile details (themes, timezone, personal info) */
+    updateProfile: (data) => axiosInstance.put('/api/users/profile', data),
 };
 
 export default userService;

@@ -25,6 +25,7 @@ import CompliancePage from './pages/Compliance/CompliancePage.jsx';
 import UsersPage from './pages/Users/UsersPage.jsx';
 import ReportsPage from './pages/Reports/ReportsPage.jsx';
 import SettingsPage from './pages/Settings/SettingsPage.jsx';
+import ProfilePage from './pages/Profile/ProfilePage.jsx';
 
 // ── Auth Wrappers ─────────────────────────────────────────────────────────────
 
@@ -136,6 +137,12 @@ export default function App() {
       <Route
         path="/settings"
         element={<ProtectedRoute role="ROLE_ADMIN"><SettingsPage /></ProtectedRoute>}
+      />
+
+      {/* ── Profile ────────────────────────────────────────────────────────── */}
+      <Route
+        path="/profile"
+        element={<ProtectedRoute><ProfilePage /></ProtectedRoute>}
       />
 
       {/* ── 403 & Catch-All ───────────────────────────────────────────────── */}

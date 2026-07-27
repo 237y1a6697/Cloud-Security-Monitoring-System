@@ -18,8 +18,21 @@ export default function ReportsPage() {
     const [reportType, setReportType] = useState('dashboard');
     const [reportFormat, setReportFormat] = useState('pdf');
 
+    // Scheduler states
+    const [schedules, setSchedules] = useState([
+        { type: 'Executive Summary', freq: 'Weekly', time: 'Monday at 08:00 UTC', email: 'secops-team@sentinelcore.com' },
+        { type: 'Vulnerability CVE Report', freq: 'Monthly', time: '1st of the month at 00:00 UTC', email: 'compliance@sentinelcore.com' }
+    ]);
+    const [schedType, setSchedType] = useState('Executive Summary');
+    const [schedFreq, setSchedFreq] = useState('Daily');
+    const [schedTime, setSchedTime] = useState('00:00');
+    const [schedEmail, setSchedEmail] = useState('');
+
+    // Email dispatcher states
+    const [dispatchEmail, setDispatchEmail] = useState('');
+    const [dispatching, setDispatching] = useState(false);
+
     async function triggerReportGeneration() {
-        // Enforce REPORT_EXPORT authorization
         if (!hasPermission('REPORT_EXPORT')) {
             Swal.fire({
                 title: 'Access Denied',
@@ -44,7 +57,6 @@ export default function ReportsPage() {
         try {
             let fetchedData = null;
 
-            // Load appropriate REST API data dynamically
             if (reportType === 'dashboard') {
                 const [statsRes, incidentsRes, alertsRes] = await Promise.all([
                     dashboardService.getStats(),
@@ -80,10 +92,13 @@ export default function ReportsPage() {
             }
 
             if (reportFormat === 'csv') {
-                downloadCsvReport(reportType, fetchedData);
+                downloadCsvReport(reportType, fetchedData, 'csv');
                 Swal.fire('Generated!', 'Your CSV report download has started.', 'success');
+            } else if (reportFormat === 'xlsx') {
+                // Mock Excel download
+                downloadCsvReport(reportType, fetchedData, 'xlsx');
+                Swal.fire('Generated!', 'Your Excel workbook download has started.', 'success');
             } else {
-                // PDF generation using html2pdf.js
                 const container = document.createElement('div');
                 container.innerHTML = getPdfHtml(reportType, fetchedData, user?.username || 'admin');
 
@@ -109,7 +124,7 @@ export default function ReportsPage() {
         }
     }
 
-    function downloadCsvReport(type, data) {
+    function downloadCsvReport(type, data, format = 'csv') {
         let content = '';
         if (type === 'dashboard') {
             const { stats } = data;
@@ -152,10 +167,12 @@ export default function ReportsPage() {
             });
         }
 
-        const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(content);
+        const mime = format === 'csv' ? 'text/csv;charset=utf-8,' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8,';
+        const ext = format === 'csv' ? 'csv' : 'xlsx';
+        const encodedUri = 'data:' + mime + encodeURIComponent(content);
         const link = document.createElement('a');
         link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `sentinelcore_${type}_report.csv`);
+        link.setAttribute('download', `sentinelcore_${type}_report.${ext}`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -269,10 +286,9 @@ export default function ReportsPage() {
                 </table>
             `;
         } else if (type === 'incidents') {
-            const count = data.length;
             bodyHtml = `
                 <div style="background:#f8fafc; padding:12px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:20px; font-size:12px; color:#334155;">
-                    Security Event Occurrences: <strong>${count} total</strong> | Critical: <strong>${data.filter(i => i.severity === 'Critical').length}</strong> | Investigating: <strong>${data.filter(i => i.status === 'Investigating').length}</strong>
+                    Security Event Occurrences: <strong>${data.length} total</strong> | Critical: <strong>${data.filter(i => i.severity === 'Critical').length}</strong> | Investigating: <strong>${data.filter(i => i.status === 'Investigating').length}</strong>
                 </div>
                 <table style="width:100%; border-collapse:collapse; font-size:10px; font-family:sans-serif;">
                     <thead>
@@ -433,52 +449,275 @@ export default function ReportsPage() {
         `;
     }
 
+    const handleSendDirectEmail = async (e) => {
+        e.preventDefault();
+        if (!dispatchEmail || !dispatchEmail.includes('@')) {
+            showToast('Please enter a valid recipient email address', 'error');
+            return;
+        }
+        setDispatching(true);
+        try {
+            // Fetch live data for selected report type
+            let fetchedData = null;
+            if (reportType === 'dashboard') {
+                const [statsRes, incidentsRes, alertsRes] = await Promise.all([
+                    dashboardService.getStats(),
+                    dashboardService.getRecentIncidents(),
+                    dashboardService.getRecentAlerts()
+                ]);
+                fetchedData = {
+                    stats: statsRes.data || {},
+                    incidents: incidentsRes.data || [],
+                    alerts: alertsRes.data || []
+                };
+            } else if (reportType === 'assets') {
+                const res = await assetService.getAll();
+                fetchedData = res.data || [];
+            } else if (reportType === 'incidents') {
+                const res = await incidentService.getAll();
+                fetchedData = res.data || [];
+            } else if (reportType === 'audit') {
+                const res = await auditService.getAllList();
+                fetchedData = res.data || [];
+            } else if (reportType === 'compliance') {
+                const [standardsRes, controlsRes] = await Promise.all([
+                    complianceService.getStandards(),
+                    complianceService.getControls()
+                ]);
+                fetchedData = {
+                    standards: standardsRes.data || [],
+                    controls: controlsRes.data || []
+                };
+            } else if (reportType === 'vulnerabilities') {
+                const res = await vulnerabilityService.getAll();
+                fetchedData = res.data || [];
+            }
+
+            const container = document.createElement('div');
+            container.innerHTML = getPdfHtml(reportType, fetchedData, user?.username || 'admin');
+
+            const opt = {
+                margin: 0.5,
+                filename: `sentinelcore_${reportType}_report.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            const pdfBase64 = await html2pdf().from(container).set(opt).outputPdf('datauristring');
+
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/reports/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({
+                    to: dispatchEmail.trim(),
+                    subject: `SentinelCore SecureOps - Security Report: ${reportType.toUpperCase()}`,
+                    body: `Please review conflicts, warnings, or anomalies in the attached system summary report for ${reportType}.`,
+                    reportType: reportType,
+                    fileName: `sentinelcore_${reportType}_report.pdf`,
+                    attachmentBase64: pdfBase64
+                })
+            });
+
+            const resJson = await response.json();
+            if (response.ok) {
+                showToast(`Report emailed successfully.`, 'success');
+                setDispatchEmail('');
+            } else {
+                console.error("Backend SMTP error:", resJson.message || resJson.error || resJson);
+                showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
+            }
+        } catch (error) {
+            console.error('Email Dispatch Error:', error);
+            showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
+        } finally {
+            setDispatching(false);
+        }
+    };
+
+    const triggerTestDispatch = async (email, type) => {
+        showToast(`Triggering manual scheduler test delivery to ${email}...`, 'info');
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/reports/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({
+                    to: email,
+                    subject: `Scheduled SentinelCore Incident Summary - Test`,
+                    body: `Manual execution check for scheduled cron report: ${type}.`,
+                    reportType: 'dashboard',
+                    fileName: 'cron_test_summary.pdf'
+                })
+            });
+            const resJson = await response.json();
+            if (response.ok) {
+                showToast(`Report emailed successfully.`, 'success');
+            } else {
+                console.error("Backend SMTP test error:", resJson.message || resJson.error || resJson);
+                showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
+            }
+        } catch (error) {
+            console.error(error);
+            showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
+        }
+    };
+
+    const handleAddDeliverySchedule = (e) => {
+        e.preventDefault();
+        if (!schedEmail || !schedEmail.includes('@')) {
+            showToast('Please enter a valid subscriber email address', 'error');
+            return;
+        }
+        const newSched = {
+            type: schedType,
+            freq: schedFreq,
+            time: `Every ${schedFreq === 'Daily' ? 'day' : schedFreq === 'Weekly' ? 'Monday' : 'Month'} at ${schedTime} UTC`,
+            email: schedEmail.trim()
+        };
+        setSchedules([...schedules, newSched]);
+        setSchedEmail('');
+        showToast('Cron compliance report delivery slot registered!', 'success');
+    };
+
     return (
         <DashboardLayout>
             <section className="content-header" style={{ marginBottom: 20 }}>
                 <h1>SOC Compliance &amp; System Reports <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 400 }}>Reporting suite</span></h1>
             </section>
 
-            <div className="panel-card" style={{ maxWidth: 600, margin: '40px auto' }}>
-                <h2 className="panel-title" style={{ marginBottom: 20 }}>Generate Summary Report</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>REPORT TYPE</label>
-                        <select
-                            id="report-type"
-                            style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)', outline: 'none' }}
-                            value={reportType}
-                            onChange={(e) => setReportType(e.target.value)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 20, alignItems: 'start' }}>
+                {/* Left Column: Generate Manual Report */}
+                <div className="panel-card">
+                    <h2 className="panel-title" style={{ marginBottom: 20 }}><i className="ph ph-file-plus" style={{ marginRight: 6 }} /> Compile Summary Report</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>REPORT TYPE</label>
+                            <select
+                                id="report-type"
+                                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)', outline: 'none' }}
+                                value={reportType}
+                                onChange={(e) => setReportType(e.target.value)}
+                            >
+                                <option value="dashboard">Executive Dashboard Summary</option>
+                                <option value="assets">IT Assets Log Report</option>
+                                <option value="incidents">Security Incidents History</option>
+                                <option value="audit">System Access Audit Trail</option>
+                                <option value="compliance">Regulatory Compliance Report</option>
+                                <option value="vulnerabilities">Vulnerability CVE Report</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>FORMAT</label>
+                            <select
+                                id="report-format"
+                                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)', outline: 'none' }}
+                                value={reportFormat}
+                                onChange={(e) => setReportFormat(e.target.value)}
+                            >
+                                <option value="pdf">Vector PDF Document (.pdf)</option>
+                                <option value="csv">Structured CSV Dataset (.csv)</option>
+                                <option value="xlsx">Structured Excel Workbook Mock (.xlsx)</option>
+                            </select>
+                        </div>
+
+                        <button
+                            className="btn"
+                            style={{ marginTop: 10, padding: '12px' }}
+                            onClick={triggerReportGeneration}
                         >
-                            <option value="dashboard">Executive Dashboard Summary</option>
-                            <option value="assets">IT Assets Log Report</option>
-                            <option value="incidents">Security Incidents History</option>
-                            <option value="audit">System Access Audit Trail</option>
-                            <option value="compliance">Regulatory Compliance Report</option>
-                            <option value="vulnerabilities">Vulnerability CVE Report</option>
-                        </select>
+                            Generate &amp; View Report
+                        </button>
                     </div>
 
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>FORMAT</label>
-                        <select
-                            id="report-format"
-                            style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)', outline: 'none' }}
-                            value={reportFormat}
-                            onChange={(e) => setReportFormat(e.target.value)}
-                        >
-                            <option value="pdf">Vector PDF (.pdf)</option>
-                            <option value="csv">Structured CSV Dataset (.csv)</option>
-                        </select>
+                    {/* Email dispatcher */}
+                    <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-color)' }}>
+                        <h3 className="panel-title" style={{ fontSize: '0.88rem', marginBottom: 10 }}><i className="ph ph-envelope-simple" style={{ marginRight: 6 }} /> Direct Email Dispatcher</h3>
+                        <form onSubmit={handleSendDirectEmail} style={{ display: 'flex', gap: 8 }}>
+                            <input
+                                type="email"
+                                placeholder="Enter operator email (e.g. j.doe@corp.com)"
+                                value={dispatchEmail}
+                                onChange={e => setDispatchEmail(e.target.value)}
+                                style={{ flex: 1, padding: 8, fontSize: '0.8rem', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)' }}
+                            />
+                            <button
+                                type="submit"
+                                className="btn"
+                                style={{ width: 'auto', padding: '0 16px', fontSize: '0.8rem' }}
+                                disabled={dispatching}
+                            >
+                                {dispatching ? 'Sending...' : 'Send Now'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {/* Right Column: Scheduled Automated Runs */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {/* Schedule Manager */}
+                    <div className="panel-card">
+                        <h2 className="panel-title" style={{ marginBottom: 15 }}><i className="ph ph-calendar" style={{ marginRight: 6 }} /> Schedule Automated Deliveries</h2>
+                        <form onSubmit={handleAddDeliverySchedule} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Report Type</label>
+                                    <select value={schedType} onChange={e => setSchedType(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+                                        <option value="Executive Summary">Executive Summary</option>
+                                        <option value="IT Assets Log Report">IT Assets Log Report</option>
+                                        <option value="Security Incidents History">Security Incidents History</option>
+                                        <option value="Vulnerability CVE Report">Vulnerability CVE Report</option>
+                                    </select>
+                                </div>
+                                <div style={{ width: 100 }}>
+                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Frequency</label>
+                                    <select value={schedFreq} onChange={e => setSchedFreq(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+                                        <option value="Daily">Daily</option>
+                                        <option value="Weekly">Weekly</option>
+                                        <option value="Monthly">Monthly</option>
+                                    </select>
+                                </div>
+                                <div style={{ width: 80 }}>
+                                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>UTC Time</label>
+                                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Recipient Subscriber Email</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input type="email" placeholder="subscriber@corp.com" value={schedEmail} onChange={e => setSchedEmail(e.target.value)} style={{ flex: 1, padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+                                    <button type="submit" className="btn" style={{ width: 'auto', padding: '0 16px', fontSize: '0.78rem' }}>Schedule</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
 
-                    <button
-                        className="btn"
-                        style={{ marginTop: 10, padding: '12px' }}
-                        onClick={triggerReportGeneration}
-                    >
-                        Generate &amp; View Report
-                    </button>
+                    {/* Active Schedules List */}
+                    <div className="panel-card">
+                        <h2 className="panel-title" style={{ marginBottom: 15 }}><i className="ph ph-clock" style={{ marginRight: 6 }} /> Active Security Cron Schedules</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {schedules.map((s, idx) => (
+                                <div key={idx} style={{ padding: 12, background: 'var(--bg-inset)', borderRadius: 6, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <strong style={{ fontSize: '0.8rem', display: 'block' }}>{s.type}</strong>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="ph ph-timer" /> {s.time}</span>
+                                    </div>
+                                    <div style={{ textAlignment: 'right' }}>
+                                        <div style={{ fontSize: '0.74rem', fontWeight: 600 }}>{s.email}</div>
+                                        <span style={{ fontSize: '0.66rem', color: 'var(--success-green)', cursor: 'pointer' }} onClick={() => triggerTestDispatch(s.email, s.type)}>Test dispatch</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
         </DashboardLayout>

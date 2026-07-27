@@ -1,5 +1,6 @@
 package com.prashanth.dashboard.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,7 @@ public class InfrastructureController {
     private final Random random = new Random();
 
     @GetMapping("/telemetry")
+    @PreAuthorize("hasAuthority('ASSET_VIEW')")
     public Map<String, Object> getTelemetry() {
         double cpu = 30.0 + random.nextDouble() * 25.0; // 30% to 55%
         double mem = 62.0 + random.nextDouble() * 10.0; // 62% to 72%

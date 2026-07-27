@@ -6,6 +6,7 @@ import com.prashanth.dashboard.controller.VulnerabilityController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ class DashboardApplicationTests {
     }
 
     @Test
+    @WithMockUser(username = "admin", authorities = {"ASSET_VIEW"})
     void testInfrastructureTelemetry() {
         Map<String, Object> telemetry = infrastructureController.getTelemetry();
         assertNotNull(telemetry);
@@ -41,6 +43,9 @@ class DashboardApplicationTests {
     }
 
     @Test
+    // Mocks an authenticated user with authority COMPLIANCE_VIEW
+    // in order to pass the method-level PreAuthorize check on ComplianceController
+    @WithMockUser(username = "admin", authorities = {"COMPLIANCE_VIEW"})
     void testComplianceStandards() {
         List<Map<String, Object>> standards = complianceController.getStandards();
         assertNotNull(standards);

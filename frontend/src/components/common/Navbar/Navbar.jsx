@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import logo from '../../../assets/logo.svg';
+import ProfileDropdown from '../../profile/ProfileDropdown.jsx';
 
 export default function Navbar() {
     const { user, logout } = useAuth();
@@ -32,12 +33,6 @@ export default function Navbar() {
     async function handleLogout() {
         await logout();
         navigate('/login?logout', { replace: true });
-    }
-
-    // Display role badge — mirrors Thymeleaf authority substring logic
-    function formatRole(role) {
-        if (!role) return 'VIEWER';
-        return role.replace('ROLE_', '').replace(/_/g, ' ');
     }
 
     return (
@@ -88,18 +83,8 @@ export default function Navbar() {
                     </button>
                 </div>
 
-                {/* User profile block — mirrors .user-profile-block */}
-                <div className="user-profile-block">
-                    <div className="user-info">
-                        <span className="user-badge">{formatRole(user?.role)}</span>
-                        <span>{user?.username || 'Operator'}</span>
-                    </div>
-                </div>
-
-                {/* Logout button — mirrors .btn-logout */}
-                <button className="btn-logout" type="button" id="logoutBtn" title="Sign Out" onClick={handleLogout}>
-                    <i className="ph ph-sign-out" />
-                </button>
+                {/* Profile menu dropdown replacing exit icon and old profile details */}
+                <ProfileDropdown />
             </div>
         </header>
     );

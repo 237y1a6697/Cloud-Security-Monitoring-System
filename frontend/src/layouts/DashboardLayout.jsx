@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import Navbar from '../components/common/Navbar/Navbar.jsx';
 import Sidebar from '../components/common/Sidebar/Sidebar.jsx';
+import FloatingAIButton from '../components/ai/FloatingAIButton.jsx';
 
 export default function DashboardLayout({ children }) {
     const [collapsed, setCollapsed] = useState(false);
@@ -30,6 +31,9 @@ export default function DashboardLayout({ children }) {
                     {children}
                 </main>
             </div>
+
+            {/* Infosys Springboard Style Floating Robot button and Right Chat Panel */}
+            <FloatingAIButton />
         </div>
     );
 }

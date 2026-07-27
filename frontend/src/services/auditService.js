@@ -34,6 +34,10 @@ const auditService = {
 
     /** Aggregate stats for the stat cards (total, success, failed, denied) */
     getStats: () => axiosInstance.get('/api/audit-logs/stats'),
+
+    /** Export audit logs as CSV or PDF blob */
+    exportLogs: (format) =>
+        axiosInstance.get(`/api/audit-logs/export/${format}`, { responseType: 'blob' }),
 };
 
 export default auditService;

@@ -81,10 +81,25 @@ export function AuthProvider({ children }) {
                 const userRole = res.data.role || 'ROLE_VIEWER';
                 const permissions = ROLE_PERMISSIONS[userRole] || [];
                 setUser({
+                    id: res.data.id,
                     username: res.data.username,
                     role: userRole,
                     lastLogin: res.data.lastLogin,
                     permissions: permissions,
+                    displayName: res.data.displayName,
+                    firstName: res.data.firstName,
+                    lastName: res.data.lastName,
+                    email: res.data.email,
+                    phone: res.data.phone,
+                    organization: res.data.organization,
+                    designation: res.data.designation,
+                    department: res.data.department,
+                    employeeId: res.data.employeeId,
+                    theme: res.data.theme,
+                    notifications: res.data.notifications,
+                    language: res.data.language,
+                    timezone: res.data.timezone,
+                    avatar: res.data.avatar,
                 });
             } else {
                 setUser(null);

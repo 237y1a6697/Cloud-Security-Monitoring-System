@@ -140,14 +140,44 @@ public class DashboardApiController {
             user.getPrimaryRoleName(),
             user.getLastLogin()
         );
+        dto.setId(user.getId());
+        dto.setDisplayName(user.getDisplayName());
+        dto.setFirstName(user.getFirstName());
+        dto.setLastName(user.getLastName());
+        dto.setEmail(user.getEmail());
+        dto.setPhone(user.getPhone());
+        dto.setOrganization(user.getOrganization());
+        dto.setDesignation(user.getDesignation());
+        dto.setDepartment(user.getDepartment());
+        dto.setEmployeeId(user.getEmployeeId());
+        dto.setTheme(user.getTheme());
+        dto.setNotifications(user.getNotifications());
+        dto.setLanguage(user.getLanguage());
+        dto.setTimezone(user.getTimezone());
+        dto.setAvatar(user.getAvatar());
         return ResponseEntity.ok(dto);
     }
 
     // DTO for user info
     public static class UserInfoDTO {
+        private Long id;
         private String username;
         private String role;
         private LocalDateTime lastLogin;
+        private String displayName;
+        private String firstName;
+        private String lastName;
+        private String email;
+        private String phone;
+        private String organization;
+        private String designation;
+        private String department;
+        private String employeeId;
+        private String theme;
+        private String notifications;
+        private String language;
+        private String timezone;
+        private String avatar;
 
         public UserInfoDTO() {}
         public UserInfoDTO(String username, String role, LocalDateTime lastLogin) {
@@ -155,11 +185,43 @@ public class DashboardApiController {
             this.role = role;
             this.lastLogin = lastLogin;
         }
+
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
         public LocalDateTime getLastLogin() { return lastLogin; }
         public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
+        
+        public String getDisplayName() { return displayName; }
+        public void setDisplayName(String displayName) { this.displayName = displayName; }
+        public String getFirstName() { return firstName; }
+        public void setFirstName(String firstName) { this.firstName = firstName; }
+        public String getLastName() { return lastName; }
+        public void setLastName(String lastName) { this.lastName = lastName; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        public String getOrganization() { return organization; }
+        public void setOrganization(String organization) { this.organization = organization; }
+        public String getDesignation() { return designation; }
+        public void setDesignation(String designation) { this.designation = designation; }
+        public String getDepartment() { return department; }
+        public void setDepartment(String department) { this.department = department; }
+        public String getEmployeeId() { return employeeId; }
+        public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
+        public String getTheme() { return theme; }
+        public void setTheme(String theme) { this.theme = theme; }
+        public String getNotifications() { return notifications; }
+        public void setNotifications(String notifications) { this.notifications = notifications; }
+        public String getLanguage() { return language; }
+        public void setLanguage(String language) { this.language = language; }
+        public String getTimezone() { return timezone; }
+        public void setTimezone(String timezone) { this.timezone = timezone; }
+        public String getAvatar() { return avatar; }
+        public void setAvatar(String avatar) { this.avatar = avatar; }
     }
 }

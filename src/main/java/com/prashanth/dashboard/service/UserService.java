@@ -4,9 +4,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.prashanth.dashboard.dto.*;
+import com.prashanth.dashboard.mapper.UserMapper;
 import com.prashanth.dashboard.model.User;
 import com.prashanth.dashboard.repository.RoleRepository;
 import com.prashanth.dashboard.repository.UserRepository;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
 
 @Service
 public class UserService {
@@ -61,6 +67,52 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /** Overloaded updateProfile to support ProfileUpdateRequest DTO values and password updates. */
+    @Transactional
+    public User updateProfile(String username, ProfileUpdateRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getEmail() != null) {
+            if (!request.getEmail().matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+                throw new IllegalArgumentException("Please enter a valid email address.");
+            }
+            user.setEmail(request.getEmail());
+        }
+        if (request.getPhone() != null) user.setPhone(request.getPhone());
+        if (request.getDesignation() != null) user.setDesignation(request.getDesignation());
+        if (request.getDepartment() != null) user.setDepartment(request.getDepartment());
+        if (request.getEmployeeId() != null) user.setEmployeeId(request.getEmployeeId());
+        
+        // Also map department to organization for backwards-compatibility/dashboard stats
+        if (request.getDepartment() != null) user.setOrganization(request.getDepartment());
+
+        if (request.getTheme() != null) user.setTheme(request.getTheme());
+        if (request.getNotifications() != null) user.setNotifications(request.getNotifications());
+        if (request.getLanguage() != null) user.setLanguage(request.getLanguage());
+        if (request.getTimezone() != null) user.setTimezone(request.getTimezone());
+        if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
+
+        // Password change logic if a new password is provided
+        if (request.getNewPassword() != null && !request.getNewPassword().trim().isEmpty()) {
+            String newPwd = request.getNewPassword().trim();
+            if (newPwd.length() < 8) {
+                throw new IllegalArgumentException("Password must contain at least 8 characters.");
+            }
+            if (request.getCurrentPassword() == null || request.getCurrentPassword().trim().isEmpty()) {
+                throw new IllegalArgumentException("Current password is required to change password.");
+            }
+            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                throw new IllegalArgumentException("Current password is incorrect.");
+            }
+            user.setPassword(passwordEncoder.encode(newPwd));
+        }
+
+        return userRepository.save(user);
+    }
+
     /** Change password — verifies old password first. */
     @Transactional
     public void changePassword(String username, String oldPassword, String newPassword) {
@@ -102,4 +154,13 @@ public class UserService {
         });
         userRepository.save(user);
     }
+
+    /** Get all users mapped to DTO. */
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(UserMapper::toResponse)
+                .collect(Collectors.toList());
+    }
 }
+
