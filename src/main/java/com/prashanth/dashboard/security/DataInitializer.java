@@ -148,6 +148,7 @@ public class DataInitializer implements CommandLineRunner {
         i2.setCreatedAt(LocalDateTime.now());
 
         incidentRepository.save(i1);
+        incidentRepository.save(i2);
       }
 
       // Seed alerts
