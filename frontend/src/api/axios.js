@@ -33,6 +33,8 @@ function getCsrfToken() {
 // e.g. https://sentinelcore.onrender.com
 // Locally it is empty so Vite's dev proxy handles /api/* → localhost:8081
 const API_BASE = import.meta.env.VITE_API_URL || '';
+console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
+console.log("API_BASE =", API_BASE);
 
 const axiosInstance = axios.create({
     baseURL: API_BASE,       // '' in dev (Vite proxy), Render URL in production
