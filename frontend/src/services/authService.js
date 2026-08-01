@@ -19,7 +19,7 @@
  *  - No CSRF token needed for the login POST.
  */
 
-import axios from 'axios';
+import axiosInstance from '../api/axios.js';
 
 const authService = {
     login: async (username, password, rememberMe = false) => {
@@ -29,7 +29,7 @@ const authService = {
         if (rememberMe) body.append('remember-me', 'on');
 
         try {
-            const response = await axios.post('/login', body, {
+            const response = await axiosInstance.post('/login', body, {
                 withCredentials: true,
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -70,7 +70,7 @@ const authService = {
         const body = new URLSearchParams();
         if (csrf) body.append('_csrf', decodeURIComponent(csrf));
 
-        return axios.post('/logout', body, {
+        return axiosInstance.post('/logout', body, {
             withCredentials: true,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             validateStatus: () => true,
@@ -78,7 +78,7 @@ const authService = {
     },
 
     register: (data) =>
-        axios.post('/api/users/register', data, {
+        axiosInstance.post('/api/users/register', data, {
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
         }),

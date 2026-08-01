@@ -29,8 +29,13 @@ function getCsrfToken() {
 
 // ── Instance ─────────────────────────────────────────────────────────────────
 
+// VITE_API_URL must be set on Vercel to your Render backend URL,
+// e.g. https://sentinelcore.onrender.com
+// Locally it is empty so Vite's dev proxy handles /api/* → localhost:8081
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 const axiosInstance = axios.create({
-    baseURL: '',             // Same origin — Vite proxy forwards /api/* → localhost:8080
+    baseURL: API_BASE,       // '' in dev (Vite proxy), Render URL in production
     withCredentials: true,   // Send JSESSIONID cookie on every request
     headers: {
         'Content-Type': 'application/json',
