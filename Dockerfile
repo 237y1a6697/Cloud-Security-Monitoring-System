@@ -24,5 +24,9 @@ COPY --from=build /app/target/dashboard-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
 
-# Use shell form so ${PORT} is expanded at runtime by Render
-CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+# Run with memory-optimized JVM arguments for 512MB RAM constraints:
+# - UseSerialGC: much lower footprint than G1GC
+# - Xss256k: reduces stack space per thread from 1MB to 256KB
+# - MaxMetaspaceSize & ReservedCodeCacheSize: bounds off-heap growth
+# - Xms / Xmx: bounds heap memory
+CMD ["sh", "-c", "java -XX:+UseSerialGC -Xss256k -XX:MaxMetaspaceSize=80m -XX:ReservedCodeCacheSize=64m -Xms128m -Xmx228m -Dserver.port=${PORT:-8080} -jar app.jar"]

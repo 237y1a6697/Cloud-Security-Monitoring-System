@@ -62,55 +62,65 @@ public class DataInitializer implements CommandLineRunner {
             "VULN_MANAGE", "COMPLIANCE_VIEW", "REPORT_EXPORT", "AUDIT_VIEW",
             "INTEGRATION_CONFIG", "SETTINGS_ACCESS"
         };
+
+        // Cache all database permissions in memory to avoid N+1 select queries on startup.
+        java.util.Map<String, Permission> permMap = permissionRepository.findAll().stream()
+                .collect(Collectors.toMap(Permission::getName, p -> p, (p1, p2) -> p1));
+
         for (String p : allPerms) {
-            if (permissionRepository.findByName(p).isEmpty()) {
-                permissionRepository.save(new Permission(p));
+            if (!permMap.containsKey(p)) {
+                Permission newPerm = permissionRepository.save(new Permission(p));
+                permMap.put(p, newPerm);
             }
         }
 
-        // ── 2. Seed roles (idempotent + update permissions if role already exists) ──
-        seedOrUpdateRole("ROLE_SUPER_ADMIN", allPerms);
+        // Cache roles to avoid multiple redundant selects
+        java.util.Map<String, Role> roleMap = roleRepository.findAll().stream()
+                .collect(Collectors.toMap(Role::getName, r -> r, (r1, r2) -> r1));
 
-        seedOrUpdateRole("ROLE_ADMIN",
+        // ── 2. Seed roles (idempotent + update permissions if role already exists) ──
+        seedOrUpdateRole(roleMap, permMap, "ROLE_SUPER_ADMIN", allPerms);
+
+        seedOrUpdateRole(roleMap, permMap, "ROLE_ADMIN",
                 "ASSET_CREATE","ASSET_EDIT","ASSET_DELETE","ASSET_VIEW",
                 "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE","INCIDENT_RESOLVE","INCIDENT_DELETE",
                 "SERVER_RESTART","CLUSTER_SCALE","CLOUD_MODIFY",
                 "VULN_MANAGE","COMPLIANCE_VIEW","REPORT_EXPORT","AUDIT_VIEW",
                 "USER_MANAGE","ROLE_ASSIGN","SETTINGS_ACCESS","INTEGRATION_CONFIG");
 
-        seedOrUpdateRole("ROLE_SOC_MANAGER",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_SOC_MANAGER",
                 "ASSET_VIEW",
                 "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE","INCIDENT_RESOLVE",
                 "REPORT_EXPORT","AUDIT_VIEW");
 
-        seedOrUpdateRole("ROLE_SECURITY_ANALYST",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_SECURITY_ANALYST",
                 "ASSET_VIEW",
                 "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE",
                 "VULN_MANAGE","REPORT_EXPORT");
 
-        seedOrUpdateRole("ROLE_INCIDENT_RESPONDER",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_INCIDENT_RESPONDER",
                 "ASSET_VIEW",
                 "INCIDENT_VIEW","INCIDENT_MANAGE","INCIDENT_RESOLVE",
                 "AUDIT_VIEW");
 
-        seedOrUpdateRole("ROLE_INFRA_ENGINEER",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_INFRA_ENGINEER",
                 "ASSET_VIEW","ASSET_CREATE","ASSET_EDIT","ASSET_DELETE",
                 "INCIDENT_VIEW",
                 "SERVER_RESTART","CLUSTER_SCALE","CLOUD_MODIFY",
                 "REPORT_EXPORT");
 
-        seedOrUpdateRole("ROLE_DEVSECOPS",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_DEVSECOPS",
                 "ASSET_VIEW","ASSET_CREATE","ASSET_EDIT",
                 "INCIDENT_VIEW","INCIDENT_CREATE","INCIDENT_MANAGE",
                 "VULN_MANAGE","SERVER_RESTART","CLUSTER_SCALE",
                 "REPORT_EXPORT");
 
-        seedOrUpdateRole("ROLE_AUDITOR",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_AUDITOR",
                 "ASSET_VIEW",
                 "INCIDENT_VIEW",
                 "AUDIT_VIEW","COMPLIANCE_VIEW","REPORT_EXPORT");
 
-        seedOrUpdateRole("ROLE_VIEWER",
+        seedOrUpdateRole(roleMap, permMap, "ROLE_VIEWER",
                 "ASSET_VIEW","INCIDENT_VIEW");
 
         // ── 3. Bootstrap super-admin (only if username "admin" absent) ────────
@@ -119,7 +129,10 @@ public class DataInitializer implements CommandLineRunner {
             admin.setFirstName("System");
             admin.setLastName("Administrator");
             admin.setOrganization("SentinelCore");
-            roleRepository.findByName("ROLE_SUPER_ADMIN").ifPresent(r -> admin.getRoles().add(r));
+            Role superAdminRole = roleMap.get("ROLE_SUPER_ADMIN");
+            if (superAdminRole != null) {
+                admin.getRoles().add(superAdminRole);
+            }
             userRepository.save(admin);
             System.out.println("[SentinelCore] Bootstrap admin created: admin / admin123");
         }
@@ -166,12 +179,11 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /** Creates role if absent; always updates its permission set so new perms are picked up on restart. */
-    private void seedOrUpdateRole(String roleName, String... perms) {
-        Role role = roleRepository.findByName(roleName).orElseGet(() -> new Role(roleName));
+    private void seedOrUpdateRole(java.util.Map<String, Role> roleMap, java.util.Map<String, Permission> permMap, String roleName, String... perms) {
+        Role role = roleMap.computeIfAbsent(roleName, k -> roleRepository.save(new Role(k)));
         Set<Permission> pSet = Arrays.stream(perms)
-                .map(p -> permissionRepository.findByName(p))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .map(permMap::get)
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
         role.setPermissions(pSet);
         roleRepository.save(role);
