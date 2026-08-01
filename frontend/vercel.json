@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/|login|logout|register).*)",
+      "destination": "/index.html"
+    }
   ]
 }
