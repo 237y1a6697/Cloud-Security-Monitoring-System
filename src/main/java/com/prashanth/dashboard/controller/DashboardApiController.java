@@ -126,10 +126,13 @@ public class DashboardApiController {
     }
 
     // SECTION 10: Logged-in User Info
+    // FIX: Return 401 when unauthenticated — NOT a 200 with "Unknown" user.
+    // The old code returned a fake 200 which fooled AuthContext into thinking
+    // a user was logged in (username "Unknown" is truthy in JS).
     @GetMapping("/user")
-    public ResponseEntity<UserInfoDTO> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
-            return ResponseEntity.ok(new UserInfoDTO("Unknown", "Unknown", null));
+            return ResponseEntity.status(401).body("{\"error\": \"Not authenticated\"}");
         }
         User user = userRepository.findByUsername(userDetails.getUsername()).orElse(null);
         if (user == null) {
