@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: sentinelcore-backend
+    runtime: docker
+    plan: free
+    branch: main
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: <YOUR_DATABASE_URL>
+      - key: SPRING_DATASOURCE_USERNAME
+        value: <YOUR_DB_USERNAME>
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: <YOUR_DB_PASSWORD>
+      - key: FRONTEND_URL
+        value: https://<YOUR_VERCEL_DOMAIN>.vercel.app
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USERNAME
+        value: <YOUR_EMAIL>
+      - key: SMTP_PASSWORD
+        value: <YOUR_APP_PASSWORD>
+      - key: JAVA_TOOL_OPTIONS
+        value: -XX:+UseSerialGC -Xss256k -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m -Xms256m -Xmx512m

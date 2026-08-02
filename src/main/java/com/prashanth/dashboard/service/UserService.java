@@ -10,6 +10,7 @@ import com.prashanth.dashboard.model.User;
 import com.prashanth.dashboard.repository.RoleRepository;
 import com.prashanth.dashboard.repository.UserRepository;
 
+import java.util.Objects;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,7 +51,7 @@ public class UserService {
         if (role != null && !role.isBlank()) {
             roleRepository.findByName(role).ifPresent(r -> user.getRoles().add(r));
         }
-        return userRepository.save(user);
+        return userRepository.save(Objects.requireNonNull(user, "user"));
     }
 
     /** Update profile fields (no password change here). */
@@ -64,7 +65,7 @@ public class UserService {
         if (email != null && !email.isBlank()) user.setEmail(email);
         if (phone != null) user.setPhone(phone);
         if (organization != null) user.setOrganization(organization);
-        return userRepository.save(user);
+        return userRepository.save(Objects.requireNonNull(user, "user"));
     }
 
     /** Overloaded updateProfile to support ProfileUpdateRequest DTO values and password updates. */
@@ -110,7 +111,7 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(newPwd));
         }
 
-        return userRepository.save(user);
+        return userRepository.save(Objects.requireNonNull(user, "user"));
     }
 
     /** Change password — verifies old password first. */
@@ -127,32 +128,32 @@ public class UserService {
 
     /** Admin reset password — no old password check. */
     @Transactional
-    public void resetPassword(Long userId, String newPassword) {
+    public void resetPassword(long userId, String newPassword) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
+        userRepository.save(Objects.requireNonNull(user, "user"));
     }
 
     /** Admin enable/disable. */
     @Transactional
-    public void setEnabled(Long userId, boolean enabled) {
+    public void setEnabled(long userId, boolean enabled) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         user.setEnabled(enabled);
-        userRepository.save(user);
+        userRepository.save(Objects.requireNonNull(user, "user"));
     }
 
     /** Admin assign role. */
     @Transactional
-    public void assignRole(Long userId, String roleName) {
+    public void assignRole(long userId, String roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         roleRepository.findByName(roleName).ifPresent(r -> {
             user.getRoles().clear();
             user.getRoles().add(r);
         });
-        userRepository.save(user);
+        userRepository.save(Objects.requireNonNull(user, "user"));
     }
 
     /** Get all users mapped to DTO. */

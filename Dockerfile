@@ -1,6 +1,5 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM eclipse-temurin:17-jdk AS build
-
+FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
 # Copy Maven wrapper and POM first (layer cache: only rebuild if pom.xml changes)
@@ -16,7 +15,7 @@ COPY src src
 RUN ./mvnw clean package -DskipTests -q
 
 # ── Stage 2: Run ──────────────────────────────────────────────────────────────
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
@@ -29,4 +28,4 @@ EXPOSE 8080
 # - Xss256k: reduces stack space per thread from 1MB to 256KB
 # - MaxMetaspaceSize & ReservedCodeCacheSize: bounds off-heap growth
 # - Xms / Xmx: bounds heap memory
-CMD ["sh", "-c", "java -XX:+UseSerialGC -Xss256k -XX:MaxMetaspaceSize=80m -XX:ReservedCodeCacheSize=64m -Xms128m -Xmx228m -Dserver.port=${PORT:-8080} -jar app.jar"]
+CMD ["sh", "-c", "java -XX:+UseSerialGC -Xss256k -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m -Xms128m -Xmx384m -Dserver.port=${PORT:-8080} -jar app.jar"]

@@ -1,23 +1,34 @@
 package com.prashanth.dashboard.controller;
 
-import com.prashanth.dashboard.dto.*;
-import com.prashanth.dashboard.model.User;
-import com.prashanth.dashboard.mapper.UserMapper;
-import com.prashanth.dashboard.repository.RoleRepository;
-import com.prashanth.dashboard.repository.UserRepository;
-import com.prashanth.dashboard.service.UserService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import com.prashanth.dashboard.dto.ProfileUpdateRequest;
+import com.prashanth.dashboard.dto.UserRegistrationRequest;
+import com.prashanth.dashboard.dto.UserResponse;
+import com.prashanth.dashboard.mapper.UserMapper;
+import com.prashanth.dashboard.model.User;
+import com.prashanth.dashboard.repository.UserRepository;
+import com.prashanth.dashboard.service.UserService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -27,17 +38,14 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final UserService userService;
-    private final RoleRepository roleRepository;
 
-    public UserController(UserRepository userRepository, UserService userService,
-                          RoleRepository roleRepository) {
+    public UserController(UserRepository userRepository, UserService userService) {
         this.userRepository = userRepository;
         this.userService = userService;
-        this.roleRepository = roleRepository;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody UserRegistrationRequest request) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest request) {
         log.info("Received registration request for username: {}", request.getUsername());
         try {
             if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
@@ -89,28 +97,28 @@ public class UserController {
 
     @PutMapping("/{id}/role")
     @PreAuthorize("hasAuthority('ROLE_ASSIGN')")
-    public String assignRole(@PathVariable Long id, @RequestParam String role) {
+    public String assignRole(@PathVariable long id, @RequestParam String role) {
         userService.assignRole(id, role);
         return "Role updated";
     }
 
     @PutMapping("/{id}/disable")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public String disableUser(@PathVariable Long id, @RequestParam boolean enabled) {
+    public String disableUser(@PathVariable long id, @RequestParam boolean enabled) {
         userService.setEnabled(id, enabled);
         return "User status updated";
     }
 
     @PutMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public String resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
+    public String resetPassword(@PathVariable long id, @RequestParam String newPassword) {
         userService.resetPassword(id, newPassword);
         return "Password reset";
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public String deleteUser(@PathVariable Long id) {
+    public String deleteUser(@PathVariable long id) {
         userRepository.deleteById(id);
         return "User deleted";
     }
@@ -118,7 +126,7 @@ public class UserController {
     @PutMapping("/profile")
     public ResponseEntity<UserResponse> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody ProfileUpdateRequest request) {
+            @Valid @RequestBody ProfileUpdateRequest request) {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }

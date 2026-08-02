@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reports")
-@CrossOrigin(origins = "*")
 public class EmailController {
     
     private static final Logger logger = LoggerFactory.getLogger(EmailController.class);

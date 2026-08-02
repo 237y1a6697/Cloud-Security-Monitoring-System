@@ -1,8 +1,6 @@
 package com.prashanth.dashboard.mapper;
 
 import com.prashanth.dashboard.dto.UserResponse;
-import com.prashanth.dashboard.model.Permission;
-import com.prashanth.dashboard.model.Role;
 import com.prashanth.dashboard.model.User;
 
 import java.util.Collections;
@@ -18,7 +16,8 @@ public class UserMapper {
 
         List<String> roleNames = user.getRoles() != null
                 ? user.getRoles().stream()
-                        .map(Role::getName)
+                        .map(role -> role != null ? role.getName() : null)
+                        .filter(name -> name != null && !name.isBlank())
                         .collect(Collectors.toList())
                 : Collections.emptyList();
 
@@ -26,7 +25,8 @@ public class UserMapper {
                 ? user.getRoles().stream()
                         .filter(role -> role.getPermissions() != null)
                         .flatMap(role -> role.getPermissions().stream())
-                        .map(Permission::getName)
+                        .map(permission -> permission != null ? permission.getName() : null)
+                        .filter(name -> name != null && !name.isBlank())
                         .distinct()
                         .collect(Collectors.toList())
                 : Collections.emptyList();

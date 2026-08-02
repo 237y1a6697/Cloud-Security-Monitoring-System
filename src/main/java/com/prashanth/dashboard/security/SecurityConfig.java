@@ -27,6 +27,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@SuppressWarnings("null")
 public class SecurityConfig {
 
     /**
@@ -59,11 +60,10 @@ public class SecurityConfig {
 
         // FIX: allowedOriginPatterns is correct for credentialed cross-site requests.
         // Add every origin your frontend may be served from (no trailing slashes).
-        config.setAllowedOriginPatterns(List.of(
+        config.setAllowedOrigins(List.of(
             frontendUrl,
             "http://localhost:5173",
-            "http://localhost:3000",
-            "https://*.vercel.app"   // catches preview deployments; remove in strict prod
+            "http://localhost:3000"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -173,16 +173,19 @@ public class SecurityConfig {
         };
     }
 
+    @SuppressWarnings("null")
     private AuthenticationFailureHandler failureHandler() {
         return (request, response, exception) -> {
             String errorParam;
             if (exception instanceof LockedException) {
                 errorParam = "locked";
-            } else if (exception.getMessage() != null &&
-                       exception.getMessage().toLowerCase().contains("disabled")) {
-                errorParam = "disabled";
             } else {
-                errorParam = "true";
+                String message = exception.getMessage();
+                if (message != null && message.toLowerCase().contains("disabled")) {
+                    errorParam = "disabled";
+                } else {
+                    errorParam = "true";
+                }
             }
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");

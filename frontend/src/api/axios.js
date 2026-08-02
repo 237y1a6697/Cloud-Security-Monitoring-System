@@ -33,6 +33,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 const axiosInstance = axios.create({
     baseURL: API_BASE,       // '' in dev (Vite proxy), Render URL in production
     withCredentials: true,   // CRITICAL: sends JSESSIONID cookie on every request
+    timeout: 15000,
     headers: {
         'Content-Type': 'application/json',
     },

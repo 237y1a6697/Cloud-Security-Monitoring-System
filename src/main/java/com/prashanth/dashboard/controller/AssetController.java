@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,7 +20,6 @@ import com.prashanth.dashboard.repository.AssetRepository;
 
 @RestController
 @RequestMapping("/api/assets")
-@CrossOrigin(origins = "*")
 public class AssetController {
 
   private final AssetRepository assetRepository;
@@ -46,7 +44,7 @@ public class AssetController {
   // Get asset by ID
   @GetMapping("/{id}")
   @PreAuthorize("hasAuthority('ASSET_VIEW')")
-  public Optional<Asset> getAssetById(@PathVariable Long id) {
+  public Optional<Asset> getAssetById(@PathVariable long id) {
     return assetRepository.findById(id);
   }
 
@@ -66,7 +64,7 @@ public class AssetController {
   @PutMapping("/{id}")
   @PreAuthorize("hasAuthority('ASSET_EDIT')")
   @Auditable(action = "Edit Asset")
-  public Asset updateAsset(@PathVariable Long id,
+  public Asset updateAsset(@PathVariable long id,
                            @RequestBody Asset updatedAsset) {
 
     return assetRepository.findById(id)
@@ -100,7 +98,7 @@ public class AssetController {
   @DeleteMapping("/{id}")
   @PreAuthorize("hasAuthority('ASSET_DELETE')")
   @Auditable(action = "Delete Asset")
-  public String deleteAsset(@PathVariable Long id) {
+  public String deleteAsset(@PathVariable long id) {
     assetRepository.deleteById(id);
     return "Asset deleted successfully!";
   }
