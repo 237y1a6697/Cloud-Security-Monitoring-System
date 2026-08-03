@@ -436,8 +436,8 @@ export default function ProfilePage() {
                                 <div className="profile-logs-list" style={{ marginTop: 10 }}>
                                     <div className="profile-log-item">
                                         <div>
-                                            <div className="profile-log-title">Edge Browser • Windows Localhost (This session)</div>
-                                            <div className="profile-log-meta">Active session IP: 127.0.0.1</div>
+                                            <div className="profile-log-title">Edge Browser • Windows Current Session</div>
+                                            <div className="profile-log-meta">Active session IP: Private session</div>
                                         </div>
                                         <span className="profile-log-status">Active now</span>
                                     </div>
@@ -539,7 +539,7 @@ export default function ProfilePage() {
                                 <div className="profile-log-item">
                                     <div>
                                         <div className="profile-log-title">User Authentication Successful</div>
-                                        <div className="profile-log-meta">Login source: Console authentication page. IP: 127.0.0.1</div>
+                                        <div className="profile-log-meta">Login source: Console authentication page. IP: Private session</div>
                                     </div>
                                     <span className="profile-log-meta">25 Jul 2026 21:54</span>
                                 </div>

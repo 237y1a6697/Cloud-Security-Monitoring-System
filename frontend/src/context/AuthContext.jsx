@@ -70,6 +70,13 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);   // { username, role, permissions[] }
     const [loading, setLoading] = useState(true);
 
+    const applyTheme = useCallback((theme) => {
+        const resolvedTheme = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', resolvedTheme);
+        document.documentElement.style.colorScheme = resolvedTheme;
+        document.body.setAttribute('data-theme', resolvedTheme);
+    }, []);
+
     /**
      * Hydrate the auth state from the active Spring Security session.
      * Called on first render and after every successful login.
@@ -101,17 +108,26 @@ export function AuthProvider({ children }) {
                     timezone: res.data.timezone,
                     avatar: res.data.avatar,
                 });
+                applyTheme(res.data.theme || 'light');
             } else {
                 setUser(null);
+                applyTheme('light');
             }
         } catch {
             setUser(null);
+            applyTheme('light');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [applyTheme]);
 
     useEffect(() => { fetchCurrentUser(); }, [fetchCurrentUser]);
+
+    useEffect(() => {
+        if (user?.theme) {
+            applyTheme(user.theme);
+        }
+    }, [applyTheme, user?.theme]);
 
     /**
      * Login: POST to Spring Security's /login, then refresh user state.
@@ -129,8 +145,9 @@ export function AuthProvider({ children }) {
             await authService.logout();
         } catch { /* ignore errors during logout */ }
         setUser(null);
+        applyTheme('light');
         window.location.href = '/login?logout';
-    }, []);
+    }, [applyTheme]);
 
     const isAuthenticated = !!user;
 
@@ -162,6 +179,7 @@ export function AuthProvider({ children }) {
             hasPermission,
             hasRole,
             refetch: fetchCurrentUser,
+            applyTheme,
         }}>
             {children}
         </AuthContext.Provider>

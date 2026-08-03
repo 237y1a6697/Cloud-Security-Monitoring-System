@@ -130,11 +130,12 @@ export default function UsersPage() {
     const roleOptions = [
         'ROLE_SUPER_ADMIN',
         'ROLE_ADMIN',
-        'ROLE_OPERATOR',
-        'ROLE_ANALYST',
-        'ROLE_COMPLIANCE',
+        'ROLE_SOC_MANAGER',
+        'ROLE_SECURITY_ANALYST',
+        'ROLE_INCIDENT_RESPONDER',
+        'ROLE_INFRA_ENGINEER',
+        'ROLE_DEVSECOPS',
         'ROLE_AUDITOR',
-        'ROLE_VIP',
         'ROLE_VIEWER'
     ];
 

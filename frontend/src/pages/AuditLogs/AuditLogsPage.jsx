@@ -84,18 +84,22 @@ export default function AuditLogsPage() {
 
     const triggerExport = (format) => {
         showToast(`Generating ${format.toUpperCase()} transaction ledger...`);
-        try {
-            const link = document.createElement('a');
-            link.href = `/api/audit-logs/export/${format}`;
-            link.setAttribute('download', `audit_logs.${format}`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showToast(`Exported audit trail records successfully!`, 'success');
-        } catch (error) {
-            console.error('Export failed:', error);
-            showToast(`Failed to export audit logs.`, 'error');
-        }
+        auditService.exportLogs(format)
+            .then((response) => {
+                const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = `audit_logs.${format}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(link.href);
+                showToast(`Exported audit trail records successfully!`, 'success');
+            })
+            .catch((error) => {
+                console.error('Export failed:', error);
+                showToast(`Failed to export audit logs.`, 'error');
+            });
     };
 
     const addEvidence = (logId) => {
@@ -246,8 +250,8 @@ export default function AuditLogsPage() {
                     </section>
 
                     {/* Filters Trigger + Exports Toolbar */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                             <button
                                 className="btn-secondary"
                                 onClick={() => setShowFiltersPanel(!showFiltersPanel)}
@@ -255,7 +259,7 @@ export default function AuditLogsPage() {
                                 <i className="ph ph-sliders" /> {showFiltersPanel ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
                             </button>
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <button className="btn" style={{ width: 'auto', fontSize: '0.8rem', padding: '8px 14px' }} onClick={() => triggerExport('csv')}><i className="ph ph-file-csv" style={{ marginRight: 6 }} /> Export CSV</button>
                             <button className="btn" style={{ width: 'auto', fontSize: '0.8rem', padding: '8px 14px', background: '#e11d48', color: 'white', border: 'none' }} onClick={() => triggerExport('pdf')}><i className="ph ph-file-pdf" style={{ marginRight: 6 }} /> Export PDF</button>
                         </div>
@@ -286,12 +290,12 @@ export default function AuditLogsPage() {
 
                     {/* Panel containing table */}
                     <div className="panel-card">
-                        <div className="toolbar" style={{ marginBottom: 15, display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="toolbar" style={{ marginBottom: 15, display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
                             <input
                                 type="search"
                                 id="auditLogSearch"
                                 placeholder="Search User, IP, Action..."
-                                style={{ width: 250, padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)' }}
+                                style={{ width: '100%', maxWidth: 320, flex: '1 1 240px', padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-inset)', color: 'var(--text-primary)' }}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />

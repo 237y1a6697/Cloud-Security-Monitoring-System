@@ -1,27 +1,29 @@
 package com.prashanth.dashboard.security;
 
-import com.prashanth.dashboard.model.Permission;
-import com.prashanth.dashboard.model.Role;
-import com.prashanth.dashboard.model.User;
-import com.prashanth.dashboard.repository.PermissionRepository;
-import com.prashanth.dashboard.repository.RoleRepository;
-import com.prashanth.dashboard.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import com.prashanth.dashboard.model.Incident;
-import com.prashanth.dashboard.repository.IncidentRepository;
+
 import com.prashanth.dashboard.model.Alert;
+import com.prashanth.dashboard.model.Incident;
+import com.prashanth.dashboard.model.Notification;
+import com.prashanth.dashboard.model.Permission;
+import com.prashanth.dashboard.model.Role;
+import com.prashanth.dashboard.model.User;
 import com.prashanth.dashboard.model.Vulnerability;
 import com.prashanth.dashboard.repository.AlertRepository;
+import com.prashanth.dashboard.repository.IncidentRepository;
+import com.prashanth.dashboard.repository.NotificationRepository;
+import com.prashanth.dashboard.repository.PermissionRepository;
+import com.prashanth.dashboard.repository.RoleRepository;
+import com.prashanth.dashboard.repository.UserRepository;
 import com.prashanth.dashboard.repository.VulnerabilityRepository;
-import java.time.LocalDateTime;
-
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -33,6 +35,7 @@ public class DataInitializer implements CommandLineRunner {
     private final IncidentRepository incidentRepository;
     private final AlertRepository alertRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
+        private final NotificationRepository notificationRepository;
 
     public DataInitializer(UserRepository userRepository,
                            RoleRepository roleRepository,
@@ -40,7 +43,8 @@ public class DataInitializer implements CommandLineRunner {
                            PasswordEncoder passwordEncoder,
                            IncidentRepository incidentRepository,
                            AlertRepository alertRepository,
-                           VulnerabilityRepository vulnerabilityRepository) {
+                           VulnerabilityRepository vulnerabilityRepository,
+                           NotificationRepository notificationRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
@@ -48,6 +52,7 @@ public class DataInitializer implements CommandLineRunner {
         this.incidentRepository = incidentRepository;
         this.alertRepository = alertRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Override
@@ -64,8 +69,12 @@ public class DataInitializer implements CommandLineRunner {
         };
 
         // Cache all database permissions in memory to avoid N+1 select queries on startup.
-        java.util.Map<String, Permission> permMap = permissionRepository.findAll().stream()
-                .collect(Collectors.toMap(Permission::getName, p -> p, (p1, p2) -> p1));
+                java.util.Map<String, Permission> permMap = new java.util.HashMap<>();
+                for (Permission permission : permissionRepository.findAll()) {
+                        if (permission != null && permission.getName() != null) {
+                                permMap.putIfAbsent(permission.getName(), permission);
+                        }
+                }
 
         for (String p : allPerms) {
             if (!permMap.containsKey(p)) {
@@ -75,8 +84,12 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         // Cache roles to avoid multiple redundant selects
-        java.util.Map<String, Role> roleMap = roleRepository.findAll().stream()
-                .collect(Collectors.toMap(Role::getName, r -> r, (r1, r2) -> r1));
+                java.util.Map<String, Role> roleMap = new java.util.HashMap<>();
+                for (Role role : roleRepository.findAll()) {
+                        if (role != null && role.getName() != null) {
+                                roleMap.putIfAbsent(role.getName(), role);
+                        }
+                }
 
         // ── 2. Seed roles (idempotent + update permissions if role already exists) ──
         seedOrUpdateRole(roleMap, permMap, "ROLE_SUPER_ADMIN", allPerms);
@@ -176,6 +189,37 @@ public class DataInitializer implements CommandLineRunner {
           vulnerabilityRepository.save(new Vulnerability("CVE-2023-4863", 8.8, 92, "14 Servers, 2 Clusters", "Pending", "Deploy Patch"));
           vulnerabilityRepository.save(new Vulnerability("CVE-2023-5363", 6.5, 65, "3 Firewalls", "Scheduled", "View Steps"));
       }
+
+          if (notificationRepository.count() == 0) {
+                  notificationRepository.save(new Notification(
+                          "Critical alert escalated",
+                          "DDoS Attempt Blocked on Gateway requires immediate review.",
+                          "ALERT",
+                          "alerts",
+                          2L
+                  ));
+                  notificationRepository.save(new Notification(
+                          "New incident assigned",
+                          "Failed Login Attempts has been assigned to the Security Team.",
+                          "INCIDENT",
+                          "incidents",
+                          1L
+                  ));
+                  notificationRepository.save(new Notification(
+                          "Vulnerability patch pending",
+                          "CVE-2023-4863 remains pending and needs remediation planning.",
+                          "VULNERABILITY",
+                          "vulnerabilities",
+                          1L
+                  ));
+                  notificationRepository.save(new Notification(
+                          "Audit review completed",
+                          "Recent audit log activity was successfully archived.",
+                          "AUDIT",
+                          "audit-logs",
+                          null
+                  ));
+          }
     }
 
     /** Creates role if absent; always updates its permission set so new perms are picked up on restart. */

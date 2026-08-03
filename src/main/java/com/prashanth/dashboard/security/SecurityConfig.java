@@ -1,5 +1,7 @@
 package com.prashanth.dashboard.security;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +24,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -58,12 +59,13 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // FIX: allowedOriginPatterns is correct for credentialed cross-site requests.
-        // Add every origin your frontend may be served from (no trailing slashes).
-        config.setAllowedOrigins(List.of(
+        // FIX: allow the exact production origin plus Vercel preview domains and local dev.
+        // This keeps credentials enabled without falling back to a blanket wildcard.
+        config.setAllowedOriginPatterns(List.of(
             frontendUrl,
             "http://localhost:5173",
-            "http://localhost:3000"
+            "http://localhost:3000",
+            "https://*.vercel.app"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -135,10 +137,6 @@ public class SecurityConfig {
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID", "remember-me")
                 .permitAll()
-            )
-            .sessionManagement(session -> session
-                .maximumSessions(1)
-                .expiredUrl("/login?expired=true")
             )
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())

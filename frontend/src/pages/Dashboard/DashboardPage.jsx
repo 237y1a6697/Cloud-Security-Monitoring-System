@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
@@ -49,6 +49,31 @@ export default function DashboardPage() {
         { time: '14:18:44', module: 'MONITOR', msg: 'Prometheus cluster target AP-03 matched latency SLO', color: 'var(--highlight-blue)' }
     ]);
 
+    const loadDashboard = useCallback(async () => {
+        try {
+            const [statsRes, statusRes, sevRes, trendRes, incRes, alertRes, auditRes] = await Promise.all([
+                dashboardService.getStats(),
+                dashboardService.getIncidentStatusChart(),
+                dashboardService.getIncidentSeverityChart(),
+                dashboardService.getIncidentTrend(),
+                dashboardService.getRecentIncidents(),
+                dashboardService.getRecentAlerts(),
+                dashboardService.getRecentAuditLogs(),
+            ]);
+            setStats(statsRes.data);
+            setStatus((statusRes.data?.statusCounts || []).map((s) => ({ name: s.status, value: s.count })));
+            setSeverity((sevRes.data?.severityCounts || []).map((s) => ({ name: s.severity, value: s.count })));
+            setTrend((trendRes.data?.trendPoints || []).map((t) => ({ date: t.date?.substring(5), count: t.count })));
+            setIncidents(incRes.data || []);
+            setAlerts(alertRes.data || []);
+            setAuditLogs(auditRes.data || []);
+        } catch (e) {
+            console.error('Dashboard load error:', e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         const msgs = [
             { module: 'SHIELD', msg: 'Dynamic patch deployment verification confirmed', color: 'var(--success-green)' },
@@ -77,32 +102,18 @@ export default function DashboardPage() {
     };
 
     useEffect(() => {
-        async function load() {
-            try {
-                const [statsRes, statusRes, sevRes, trendRes, incRes, alertRes, auditRes] = await Promise.all([
-                    dashboardService.getStats(),
-                    dashboardService.getIncidentStatusChart(),
-                    dashboardService.getIncidentSeverityChart(),
-                    dashboardService.getIncidentTrend(),
-                    dashboardService.getRecentIncidents(),
-                    dashboardService.getRecentAlerts(),
-                    dashboardService.getRecentAuditLogs(),
-                ]);
-                setStats(statsRes.data);
-                setStatus((statusRes.data?.statusCounts || []).map((s) => ({ name: s.status, value: s.count })));
-                setSeverity((sevRes.data?.severityCounts || []).map((s) => ({ name: s.severity, value: s.count })));
-                setTrend((trendRes.data?.trendPoints || []).map((t) => ({ date: t.date?.substring(5), count: t.count })));
-                setIncidents(incRes.data || []);
-                setAlerts(alertRes.data || []);
-                setAuditLogs(auditRes.data || []);
-            } catch (e) {
-                console.error('Dashboard load error:', e);
-            } finally {
-                setLoading(false);
-            }
+        loadDashboard();
+    }, [loadDashboard]);
+
+    useEffect(() => {
+        function handleRefresh() {
+            setLoading(true);
+            loadDashboard();
         }
-        load();
-    }, []);
+
+        window.addEventListener('sentinelcore:refresh-dashboard', handleRefresh);
+        return () => window.removeEventListener('sentinelcore:refresh-dashboard', handleRefresh);
+    }, [loadDashboard]);
 
     const kpiCards = [
         { color: 'blue', label: 'Total Assets', value: stats?.totalAssets, sub: 'Devices registered', icon: 'ph-desktop', valueColor: '' },
@@ -127,9 +138,9 @@ export default function DashboardPage() {
             </section>
 
             {loading ? <Loader /> : (
-                <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 20, alignItems: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(280px, 1fr)', gap: 20, alignItems: 'start', minWidth: 0 }}>
                     {/* Left Column: KPI cards, charts, and tables */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
                         {/* KPI Cards */}
                         <section className="kpi-grid">
                             {kpiCards.map((c) => (
@@ -149,7 +160,7 @@ export default function DashboardPage() {
 
                         {/* Charts Row */}
                         {(statusChart.length > 0 || severityChart.length > 0 || trendChart.length > 0) && (
-                            <section className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                            <section className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, minWidth: 0 }}>
                                 {/* Incident Status Pie */}
                                 <div className="panel-card">
                                     <h2 className="panel-title">Incident Status <span className="panel-subtitle">By state</span></h2>
@@ -286,7 +297,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Right Column: Gauges, SOAR Actions, Live Ticker Feed */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
                         {/* Security compliance gauges */}
                         <div className="panel-card">
                             <h2 className="panel-title">Compliance Gauges</h2>

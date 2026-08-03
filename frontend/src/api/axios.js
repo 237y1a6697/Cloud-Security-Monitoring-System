@@ -10,7 +10,7 @@
  * PRODUCTION NOTE:
  *   VITE_API_URL must be set on Vercel to your Render backend URL (no trailing slash):
  *   e.g.  https://sentinelcore-backend.onrender.com
- *   Locally it is empty so Vite's dev proxy handles /api/* → localhost:8081
+ *   Locally it is empty so Vite's dev proxy handles /api/* to the local backend
  */
 
 import axios from 'axios';

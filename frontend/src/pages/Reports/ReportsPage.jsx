@@ -4,6 +4,7 @@ import { useToast } from '../../components/common/Toast/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Swal from 'sweetalert2';
 import html2pdf from 'html2pdf.js';
+import axiosInstance from '../../api/axios.js';
 
 import assetService from '../../services/assetService.js';
 import incidentService from '../../services/incidentService.js';
@@ -31,6 +32,11 @@ export default function ReportsPage() {
     // Email dispatcher states
     const [dispatchEmail, setDispatchEmail] = useState('');
     const [dispatching, setDispatching] = useState(false);
+
+    async function sendReportEmail(payload) {
+        const response = await axiosInstance.post('/api/reports/send-email', payload);
+        return response.data;
+    }
 
     async function triggerReportGeneration() {
         if (!hasPermission('REPORT_EXPORT')) {
@@ -506,34 +512,25 @@ export default function ReportsPage() {
 
             const pdfBase64 = await html2pdf().from(container).set(opt).outputPdf('datauristring');
 
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/reports/send-email', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({
+            const result = await sendReportEmail({
                     to: dispatchEmail.trim(),
                     subject: `SentinelCore SecureOps - Security Report: ${reportType.toUpperCase()}`,
                     body: `Please review conflicts, warnings, or anomalies in the attached system summary report for ${reportType}.`,
                     reportType: reportType,
                     fileName: `sentinelcore_${reportType}_report.pdf`,
                     attachmentBase64: pdfBase64
-                })
             });
 
-            const resJson = await response.json();
-            if (response.ok) {
+            if (result?.message) {
                 showToast(`Report emailed successfully.`, 'success');
                 setDispatchEmail('');
             } else {
-                console.error("Backend SMTP error:", resJson.message || resJson.error || resJson);
                 showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
             }
         } catch (error) {
             console.error('Email Dispatch Error:', error);
-            showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
+            const message = error.response?.data?.message || error.response?.data?.error || 'Email delivery failed. Please verify SMTP configuration.';
+            showToast(message, 'error');
         } finally {
             setDispatching(false);
         }
@@ -542,31 +539,22 @@ export default function ReportsPage() {
     const triggerTestDispatch = async (email, type) => {
         showToast(`Triggering manual scheduler test delivery to ${email}...`, 'info');
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/reports/send-email', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({
+            const response = await sendReportEmail({
                     to: email,
                     subject: `Scheduled SentinelCore Incident Summary - Test`,
                     body: `Manual execution check for scheduled cron report: ${type}.`,
                     reportType: 'dashboard',
                     fileName: 'cron_test_summary.pdf'
-                })
             });
-            const resJson = await response.json();
-            if (response.ok) {
+            if (response?.message) {
                 showToast(`Report emailed successfully.`, 'success');
             } else {
-                console.error("Backend SMTP test error:", resJson.message || resJson.error || resJson);
                 showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
             }
         } catch (error) {
             console.error(error);
-            showToast('Email delivery failed. Please verify SMTP configuration.', 'error');
+            const message = error.response?.data?.message || error.response?.data?.error || 'Email delivery failed. Please verify SMTP configuration.';
+            showToast(message, 'error');
         }
     };
 

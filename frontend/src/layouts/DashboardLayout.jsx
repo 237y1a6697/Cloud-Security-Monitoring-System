@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }) {
     const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <div className="app-container" id="appBody">
+        <div className={`app-container${collapsed ? ' sidebar-collapsed' : ''}`} id="appBody">
             {/* Navbar */}
             <Navbar />
 
