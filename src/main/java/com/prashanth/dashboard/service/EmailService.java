@@ -1,5 +1,5 @@
 package com.prashanth.dashboard.service;
-
+import jakarta.annotation.PostConstruct;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -22,8 +22,22 @@ public class EmailService {
     private JavaMailSender mailSender;
 
     @Value("${spring.mail.username:}")
-    private String fromEmail;
+private String fromEmail;
 
+@Value("${spring.mail.host}")
+private String smtpHost;
+
+@Value("${spring.mail.port}")
+private String smtpPort;
+    @PostConstruct
+public void checkMailConfig() {
+    logger.info("========== MAIL CONFIG ==========");
+    logger.info("SMTP Host: {}", smtpHost);
+    logger.info("SMTP Port: {}", smtpPort);
+    logger.info("SMTP Username: {}", fromEmail);
+    logger.info("=================================");
+}
+   
     public void sendPlainEmail(String to, String subject, String body) {
         if (mailSender == null) {
             logger.error("JavaMailSender is not initialized or configured.");
