@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
 import jakarta.annotation.PostConstruct;
 
 @Component
@@ -59,12 +60,7 @@ public class SmtpValidator {
             logger.info("  Resolved SMTP Host: {}", host);
             logger.info("  Resolved SMTP Port: {}", port);
             logger.info("  Resolved SMTP Username: '{}'", username);
-            logger.info("  Resolved SMTP Password Length: {}", password != null ? password.length() : 0);
-            if (password != null && password.length() > 0) {
-                String masked = password.substring(0, Math.min(3, password.length())) + "..." +
-                                 password.substring(Math.max(0, password.length() - 3));
-                logger.info("  Masked SMTP Password: {}", masked);
-            }
+            // Do NOT log password or password length in production logs for security reasons.
         }
     }
 }

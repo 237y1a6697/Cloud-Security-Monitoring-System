@@ -1,7 +1,6 @@
 package com.prashanth.dashboard.service;
-import jakarta.annotation.PostConstruct;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import java.net.UnknownHostException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +12,10 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 public class EmailService {
@@ -56,15 +59,19 @@ public void checkMailConfig() {
             mailSender.send(message);
             logger.info("Plain text email successfully sent to {}", to);
         } catch (MailAuthenticationException e) {
-            logger.error("SMTP Authentication Failed: Username/Password credentials rejected. Custom fromEmail configured: {}", fromEmail, e);
-            throw new RuntimeException("SMTP Authentication Failed: Incorrect SMTP credentials. "
-                    + "If using Gmail, please verify you configured a 16-character Google App Password (not your primary password) in the SMTP_PASSWORD env var.", e);
+            logger.error("SMTP Authentication Failed: credentials rejected when sending to {}.", to);
+            throw new RuntimeException("SMTP_AUTHENTICATION_FAILED: Incorrect SMTP credentials. If using Gmail, verify you configured a Google App Password in SMTP_PASSWORD.", e);
         } catch (MailSendException e) {
-            logger.error("SMTP Transport Connection / Delivery Failed when emailing {}", to, e);
-            throw new RuntimeException("SMTP Send Failure: Host/Connection issue or invalid sender alignment. Details: " + e.getMessage(), e);
+            Throwable cause = e.getCause();
+            if (cause instanceof UnknownHostException) {
+                logger.error("SMTP DNS resolution failed for host {} when sending to {}.", smtpHost, to);
+                throw new RuntimeException("SMTP_DNS_RESOLUTION_FAILED: Unable to resolve host: " + smtpHost, e);
+            }
+            logger.error("SMTP Transport Connection / Delivery Failed when emailing {}.", to);
+            throw new RuntimeException("SMTP_CONNECTION_FAILED: " + e.getMessage(), e);
         } catch (Exception e) {
-            logger.error("Failed to send plain text email to {}", to, e);
-            throw new RuntimeException("SMTP delivery failure: " + e.getMessage(), e);
+            logger.error("Failed to send plain text email to {}.", to);
+            throw new RuntimeException("SMTP_DELIVERY_FAILED: " + e.getMessage(), e);
         }
     }
 
@@ -96,18 +103,22 @@ public void checkMailConfig() {
             mailSender.send(message);
             logger.info("HTML email successfully sent to {}", to);
         } catch (MailAuthenticationException e) {
-            logger.error("SMTP Authentication Failed: Username/Password credentials rejected. Custom fromEmail configured: {}", fromEmail, e);
-            throw new RuntimeException("SMTP Authentication Failed: Incorrect SMTP credentials. "
-                    + "If using Gmail, please verify you configured a 16-character Google App Password (not your primary password) in the SMTP_PASSWORD env var.", e);
+            logger.error("SMTP Authentication Failed: credentials rejected when sending to {}.", to);
+            throw new RuntimeException("SMTP_AUTHENTICATION_FAILED: Incorrect SMTP credentials. If using Gmail, verify you configured a Google App Password in SMTP_PASSWORD.", e);
         } catch (MailSendException e) {
-            logger.error("SMTP Transport Connection / Delivery Failed when emailing {}", to, e);
-            throw new RuntimeException("SMTP Send Failure: Host/Connection issue or invalid sender alignment. Details: " + e.getMessage(), e);
+            Throwable cause = e.getCause();
+            if (cause instanceof UnknownHostException) {
+                logger.error("SMTP DNS resolution failed for host {} when sending to {}.", smtpHost, to);
+                throw new RuntimeException("SMTP_DNS_RESOLUTION_FAILED: Unable to resolve host: " + smtpHost, e);
+            }
+            logger.error("SMTP Transport Connection / Delivery Failed when emailing {}.", to);
+            throw new RuntimeException("SMTP_CONNECTION_FAILED: " + e.getMessage(), e);
         } catch (MessagingException e) {
-            logger.error("Failed to compile or deliver HTML email to {}", to, e);
-            throw new RuntimeException("SMTP delivery failure: " + e.getMessage(), e);
+            logger.error("Failed to compile or deliver HTML email to {}.", to);
+            throw new RuntimeException("SMTP_DELIVERY_FAILED: " + e.getMessage(), e);
         } catch (Exception e) {
-            logger.error("Unexpected error during email dispatch to {}", to, e);
-            throw new RuntimeException("SMTP delivery failure: " + e.getMessage(), e);
+            logger.error("Unexpected error during email dispatch to {}.", to);
+            throw new RuntimeException("SMTP_DELIVERY_FAILED: " + e.getMessage(), e);
         }
     }
 }
