@@ -8,7 +8,7 @@ import { useToast } from '../../components/common/Toast/Toast.jsx';
 import userService from '../../services/userService.js';
 
 export default function ProfilePage() {
-    const { user, refetch } = useAuth();
+    const { user, refetch, applyTheme } = useAuth();
     const showToast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = searchParams.get('tab') || 'general';
@@ -66,6 +66,9 @@ export default function ProfilePage() {
     const handlePreferencesChange = (e) => {
         const { name, value } = e.target;
         setPreferences(prev => ({ ...prev, [name]: value }));
+        if (name === 'theme') {
+            applyTheme(value);
+        }
     };
 
     const handlePasswordChange = (e) => {
@@ -189,6 +192,7 @@ export default function ProfilePage() {
                 language: user.language || 'en',
                 timezone: user.timezone || 'GMT+05:30'
             });
+            applyTheme(user.theme || 'light');
         }
         showToast('Form fields reset to saved profile data.', 'info');
     };

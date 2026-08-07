@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.prashanth.dashboard.aop.Auditable;
 import com.prashanth.dashboard.model.AuditLog;
 import com.prashanth.dashboard.service.AuditLogService;
 import com.lowagie.text.Document;
@@ -102,6 +103,7 @@ public class AuditLogController {
     }
 
     @GetMapping("/export/csv")
+    @Auditable(action = "AUDIT_LOG_EXPORT_CSV")
     public ResponseEntity<byte[]> exportCsv() {
         List<AuditLog> logs = auditLogService.getAllAuditLogs();
         StringBuilder sb = new StringBuilder();
@@ -125,6 +127,7 @@ public class AuditLogController {
     }
 
     @GetMapping("/export/pdf")
+    @Auditable(action = "AUDIT_LOG_EXPORT_PDF")
     public ResponseEntity<byte[]> exportPdf() throws Exception {
         List<AuditLog> logs = auditLogService.getAllAuditLogs();
         ByteArrayOutputStream out = new ByteArrayOutputStream();

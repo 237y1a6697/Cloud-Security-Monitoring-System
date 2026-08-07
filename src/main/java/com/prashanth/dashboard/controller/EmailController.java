@@ -1,5 +1,6 @@
 package com.prashanth.dashboard.controller;
 
+import com.prashanth.dashboard.aop.Auditable;
 import com.prashanth.dashboard.service.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,7 @@ public class EmailController {
 
     @PostMapping("/send-email")
     @PreAuthorize("hasAuthority('REPORT_EXPORT')")
+    @Auditable(action = "REPORT_EMAIL_DISPATCH")
     public ResponseEntity<?> sendReportEmail(@RequestBody Map<String, Object> payload) {
         String to = (String) payload.get("to");
         String subject = (String) payload.get("subject");

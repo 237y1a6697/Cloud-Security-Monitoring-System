@@ -47,10 +47,10 @@ public class UserService {
         user.setPhone(phone);
         user.setOrganization(organization);
 
-        // Assign the selected role
-        if (role != null && !role.isBlank()) {
-            roleRepository.findByName(role).ifPresent(r -> user.getRoles().add(r));
-        }
+        // SECURITY: Always assign ROLE_VIEWER on self-registration.
+        // Never trust the role value from the client — admins must promote via Users page.
+        roleRepository.findByName("ROLE_VIEWER").ifPresent(r -> user.getRoles().add(r));
+
         return userRepository.save(Objects.requireNonNull(user, "user"));
     }
 

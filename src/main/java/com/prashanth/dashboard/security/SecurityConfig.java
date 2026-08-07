@@ -24,6 +24,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.stream.Collectors;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.prashanth.dashboard.repository.UserRepository;
+import com.prashanth.dashboard.repository.RoleRepository;
+import com.prashanth.dashboard.repository.AuditLogRepository;
+import com.prashanth.dashboard.model.AuditLog;
 
 @Configuration
 @EnableWebSecurity
@@ -39,9 +45,18 @@ public class SecurityConfig {
     private String frontendUrl;
 
     private final CustomUserDetailsService userDetailsService;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final AuditLogRepository auditLogRepository;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService,
+                          UserRepository userRepository,
+                          RoleRepository roleRepository,
+                          AuditLogRepository auditLogRepository) {
         this.userDetailsService = userDetailsService;
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Bean
@@ -104,9 +119,9 @@ public class SecurityConfig {
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/fonts/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users/register").permitAll()
-                .requestMatchers("/login", "/register", "/api/users/register", "/access-denied", "/error").permitAll()
-                // FIX: Expose /actuator/health and /health so Render health checks pass
-                .requestMatchers("/actuator/health", "/health").permitAll()
+                .requestMatchers("/login", "/register", "/api/users/register", "/access-denied", "/error", "/login/oauth2/**", "/oauth2/**").permitAll()
+                // FIX: Expose root, /actuator/health and /health so Render health checks pass
+                .requestMatchers("/", "/actuator/health", "/health").permitAll()
                 .requestMatchers("/admin/**").hasAnyRole("SUPER_ADMIN", "ADMIN")
                 .anyRequest().authenticated()
             )
@@ -119,21 +134,16 @@ public class SecurityConfig {
                 .failureHandler(failureHandler())
                 .permitAll()
             )
+            .oauth2Login(oauth2 -> oauth2
+                .successHandler(oauth2SuccessHandler())
+            )
             // FIX: wire remember-me to the named bean so cookie attributes are correct
             .rememberMe(remember -> remember
                 .rememberMeServices(rememberMeServices())
             )
             .logout(logout -> logout
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "POST"))
-                .logoutSuccessHandler((request, response, authentication) -> {
-                    // FIX: Explicitly delete SameSite=None;Secure cookies on logout
-                    deleteCrossSiteCookie(response, "JSESSIONID");
-                    deleteCrossSiteCookie(response, "remember-me");
-                    deleteCrossSiteCookie(response, "XSRF-TOKEN");
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"success\": true}");
-                })
+                .logoutSuccessHandler(logoutSuccessHandler())
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID", "remember-me")
                 .permitAll()
@@ -142,7 +152,7 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 // FIX: Exclude all REST API paths and SPA auth endpoints from CSRF
-                .ignoringRequestMatchers("/api/**", "/login", "/logout", "/register")
+                .ignoringRequestMatchers("/api/**", "/login", "/logout", "/register", "/login/oauth2/**", "/oauth2/**")
             )
             .exceptionHandling(ex -> ex
                 // FIX: Return JSON 401 — do NOT redirect to /login (that returns HTML, not JSON)
@@ -165,6 +175,19 @@ public class SecurityConfig {
 
     private AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
+            AuditLog auditLog = new AuditLog();
+            auditLog.setUsername(authentication.getName());
+            String roles = authentication.getAuthorities().stream()
+                .map(a -> a.getAuthority())
+                .collect(Collectors.joining(","));
+            auditLog.setRole(roles != null && roles.length() > 250 ? roles.substring(0, 250) : roles);
+            auditLog.setIpAddress(request.getRemoteAddr());
+            String ua = request.getHeader("User-Agent");
+            auditLog.setDeviceBrowser(ua != null && ua.length() > 250 ? ua.substring(0, 250) : ua);
+            auditLog.setAction("USER_LOGIN");
+            auditLog.setResult("SUCCESS");
+            auditLogRepository.save(auditLog);
+
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/json");
             response.getWriter().write("{\"success\": true}");
@@ -174,6 +197,21 @@ public class SecurityConfig {
     @SuppressWarnings("null")
     private AuthenticationFailureHandler failureHandler() {
         return (request, response, exception) -> {
+            String username = request.getParameter("username");
+            if (username == null || username.trim().isEmpty()) {
+                username = "unknown";
+            }
+            
+            AuditLog auditLog = new AuditLog();
+            auditLog.setUsername(username);
+            auditLog.setRole("NONE");
+            auditLog.setIpAddress(request.getRemoteAddr());
+            String ua = request.getHeader("User-Agent");
+            auditLog.setDeviceBrowser(ua != null && ua.length() > 250 ? ua.substring(0, 250) : ua);
+            auditLog.setAction("USER_LOGIN");
+            auditLog.setResult("FAILED: " + (exception.getMessage() != null ? exception.getMessage() : "Bad Credentials"));
+            auditLogRepository.save(auditLog);
+
             String errorParam;
             if (exception instanceof LockedException) {
                 errorParam = "locked";
@@ -188,6 +226,132 @@ public class SecurityConfig {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write("{\"error\": \"" + errorParam + "\"}");
+        };
+    }
+
+    private org.springframework.security.web.authentication.logout.LogoutSuccessHandler logoutSuccessHandler() {
+        return (request, response, authentication) -> {
+            String username = (authentication != null) ? authentication.getName() : "anonymous";
+            
+            AuditLog auditLog = new AuditLog();
+            auditLog.setUsername(username);
+            
+            String roles = "NONE";
+            if (authentication != null) {
+                roles = authentication.getAuthorities().stream()
+                    .map(a -> a.getAuthority())
+                    .collect(Collectors.joining(","));
+            }
+            auditLog.setRole(roles != null && roles.length() > 250 ? roles.substring(0, 250) : roles);
+            auditLog.setIpAddress(request.getRemoteAddr());
+            String ua = request.getHeader("User-Agent");
+            auditLog.setDeviceBrowser(ua != null && ua.length() > 250 ? ua.substring(0, 250) : ua);
+            auditLog.setAction("USER_LOGOUT");
+            auditLog.setResult("SUCCESS");
+            auditLogRepository.save(auditLog);
+
+            deleteCrossSiteCookie(response, "JSESSIONID");
+            deleteCrossSiteCookie(response, "remember-me");
+            deleteCrossSiteCookie(response, "XSRF-TOKEN");
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"success\": true}");
+        };
+    }
+
+    private AuthenticationSuccessHandler oauth2SuccessHandler() {
+        return (request, response, authentication) -> {
+            org.springframework.security.oauth2.core.user.OAuth2User oauth2User =
+                (org.springframework.security.oauth2.core.user.OAuth2User) authentication.getPrincipal();
+            
+            String email = oauth2User.getAttribute("email");
+            String name = oauth2User.getAttribute("name");
+            if (name == null) name = oauth2User.getAttribute("given_name");
+            if (name == null) name = "Google User";
+            
+            if (email == null || email.isBlank()) {
+                response.sendRedirect(frontendUrl + "/login?error=oauth_email_missing");
+                return;
+            }
+            
+            // Check if user exists
+            java.util.Optional<com.prashanth.dashboard.model.User> localUserOpt = userRepository.findByEmail(email);
+            com.prashanth.dashboard.model.User user;
+            PasswordEncoder encoder = new BCryptPasswordEncoder();
+            
+            if (localUserOpt.isPresent()) {
+                user = localUserOpt.get();
+            } else {
+                // Auto-register
+                String username = email.split("@")[0];
+                int suffix = 1;
+                String baseUsername = username;
+                while (userRepository.findByUsername(username).isPresent()) {
+                    username = baseUsername + suffix++;
+                }
+                
+                user = new com.prashanth.dashboard.model.User(
+                    username,
+                    encoder.encode(java.util.UUID.randomUUID().toString()),
+                    email
+                );
+                
+                String[] nameParts = name.split(" ", 2);
+                user.setFirstName(nameParts[0]);
+                if (nameParts.length > 1) {
+                    user.setLastName(nameParts[1]);
+                }
+                user.setEnabled(true);
+                
+                // SECURITY: Default to ROLE_VIEWER
+                roleRepository.findByName("ROLE_VIEWER").ifPresent(r -> user.getRoles().add(r));
+                userRepository.save(user);
+                
+                // Log registration
+                AuditLog rlog = new AuditLog();
+                rlog.setUsername(username);
+                rlog.setRole("ROLE_VIEWER");
+                rlog.setIpAddress(request.getRemoteAddr());
+                String ua = request.getHeader("User-Agent");
+                rlog.setDeviceBrowser(ua != null && ua.length() > 250 ? ua.substring(0, 250) : ua);
+                rlog.setAction("USER_REGISTER_OAUTH2");
+                rlog.setResult("SUCCESS");
+                auditLogRepository.save(rlog);
+            }
+            
+            // Log login
+            AuditLog llog = new AuditLog();
+            llog.setUsername(user.getUsername());
+            String userroles = user.getRoles().stream()
+                .map(com.prashanth.dashboard.model.Role::getName)
+                .collect(Collectors.joining(","));
+            llog.setRole(userroles != null && userroles.length() > 250 ? userroles.substring(0, 250) : userroles);
+            llog.setIpAddress(request.getRemoteAddr());
+            String ua = request.getHeader("User-Agent");
+            llog.setDeviceBrowser(ua != null && ua.length() > 250 ? ua.substring(0, 250) : ua);
+            llog.setAction("USER_LOGIN_OAUTH2");
+            llog.setResult("SUCCESS");
+            auditLogRepository.save(llog);
+            
+            // Re-authenticate user as local DB user
+            org.springframework.security.core.userdetails.UserDetails userDetails =
+                userDetailsService.loadUserByUsername(user.getUsername());
+            
+            org.springframework.security.authentication.UsernamePasswordAuthenticationToken localAuth =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities()
+                );
+            
+            SecurityContextHolder.getContext().setAuthentication(localAuth);
+            
+            // ALSO store in session so JSESSIONID matches
+            request.getSession().setAttribute(
+                org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                SecurityContextHolder.getContext()
+            );
+            
+            // Redirect to frontend dashboard
+            response.sendRedirect(frontendUrl + "/dashboard");
         };
     }
 

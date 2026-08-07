@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.prashanth.dashboard.aop.Auditable;
 import com.prashanth.dashboard.dto.ProfileUpdateRequest;
 import com.prashanth.dashboard.dto.UserRegistrationRequest;
 import com.prashanth.dashboard.dto.UserResponse;
@@ -45,6 +46,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
+    @Auditable(action = "USER_REGISTER")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest request) {
         log.info("Received registration request for username: {}", request.getUsername());
         try {
@@ -97,6 +99,7 @@ public class UserController {
 
     @PutMapping("/{id}/role")
     @PreAuthorize("hasAuthority('ROLE_ASSIGN')")
+    @Auditable(action = "USER_ROLE_ASSIGN")
     public String assignRole(@PathVariable long id, @RequestParam String role) {
         userService.assignRole(id, role);
         return "Role updated";
@@ -104,6 +107,7 @@ public class UserController {
 
     @PutMapping("/{id}/disable")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
+    @Auditable(action = "USER_SET_ENABLED")
     public String disableUser(@PathVariable long id, @RequestParam boolean enabled) {
         userService.setEnabled(id, enabled);
         return "User status updated";
@@ -111,6 +115,7 @@ public class UserController {
 
     @PutMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
+    @Auditable(action = "USER_PASSWORD_RESET")
     public String resetPassword(@PathVariable long id, @RequestParam String newPassword) {
         userService.resetPassword(id, newPassword);
         return "Password reset";
@@ -118,12 +123,14 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
+    @Auditable(action = "USER_DELETE")
     public String deleteUser(@PathVariable long id) {
         userRepository.deleteById(id);
         return "User deleted";
     }
 
     @PutMapping("/profile")
+    @Auditable(action = "USER_PROFILE_UPDATE")
     public ResponseEntity<UserResponse> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ProfileUpdateRequest request) {

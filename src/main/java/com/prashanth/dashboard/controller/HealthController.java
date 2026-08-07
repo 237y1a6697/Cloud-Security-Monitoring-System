@@ -20,6 +20,14 @@ import java.util.Map;
 @RestController
 public class HealthController {
 
+    @GetMapping("/")
+    public ResponseEntity<Map<String, String>> welcome() {
+        return ResponseEntity.ok(Map.of(
+            "status", "ACTIVE",
+            "service", "SentinelCore SecureOps API Backend"
+        ));
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(
