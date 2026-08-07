@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import aiAssistantService from '../services/aiAssistantService.js';
 
@@ -12,6 +12,10 @@ export function AIProvider({ children }) {
     });
     const [loading, setLoading] = useState(false);
     const location = useLocation();
+
+    // Ref to always hold the current messages — avoids stale closure in sendMessage
+    const messagesRef = useRef(messages);
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
 
     // Persist messages to session storage
     useEffect(() => {
@@ -55,8 +59,8 @@ export function AIProvider({ children }) {
             const path = location.pathname;
             const pageName = getPageName(path);
 
-            // Extract bare history to send to server (role + content)
-            const history = messages.map(m => ({ role: m.role, content: m.content }));
+            // Use ref to read current history — avoids stale closure
+            const history = messagesRef.current.map(m => ({ role: m.role, content: m.content }));
 
             const response = await aiAssistantService.chat(text, history, pageName, path);
 
@@ -80,7 +84,7 @@ export function AIProvider({ children }) {
         } finally {
             setLoading(false);
         }
-    }, [messages, location]);
+    }, [location]); // removed `messages` dep — now using messagesRef
 
     return (
         <AIContext.Provider value={{

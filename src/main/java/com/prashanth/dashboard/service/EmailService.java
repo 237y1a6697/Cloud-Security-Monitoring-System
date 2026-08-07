@@ -22,13 +22,13 @@ public class EmailService {
     private JavaMailSender mailSender;
 
     @Value("${spring.mail.username:}")
-private String fromEmail;
+    private String fromEmail;
 
-@Value("${spring.mail.host}")
-private String smtpHost;
+    @Value("${spring.mail.host:smtp.gmail.com}")
+    private String smtpHost;
 
-@Value("${spring.mail.port}")
-private String smtpPort;
+    @Value("${spring.mail.port:587}")
+    private String smtpPort;
     @PostConstruct
 public void checkMailConfig() {
     logger.info("========== MAIL CONFIG ==========");

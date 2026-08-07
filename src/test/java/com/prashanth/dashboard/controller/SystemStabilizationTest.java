@@ -54,6 +54,8 @@ public class SystemStabilizationTest {
     @WithMockUser(username = "admin", authorities = {"USER_MANAGE"})
     public void testRegistrationRoleViewerDefault() {
         String testUser = "securityenforced_" + System.currentTimeMillis();
+        // NOTE: No `role` field — the API intentionally does not accept it.
+        // All self-registered users receive ROLE_VIEWER regardless of client input.
         UserRegistrationRequest request = new UserRegistrationRequest(
             testUser,
             "superSecPwd123!",
@@ -61,8 +63,7 @@ public class SystemStabilizationTest {
             "Security",
             "Guard",
             "555-0199",
-            "SecOps Corp",
-            "ROLE_SUPER_ADMIN" // Requesting SUPER_ADMIN role maliciously
+            "SecOps Corp"
         );
 
         ResponseEntity<?> response = userController.registerUser(request);

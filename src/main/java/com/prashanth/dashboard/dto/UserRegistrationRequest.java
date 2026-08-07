@@ -4,6 +4,13 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * DTO for self-registration.
+ *
+ * NOTE: There is intentionally NO `role` field here. All self-registered users
+ * are assigned ROLE_VIEWER by UserService, regardless of any client input.
+ * Role promotion is performed exclusively by admins via the Users management page.
+ */
 public class UserRegistrationRequest {
     @NotBlank(message = "Username is required")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
@@ -17,21 +24,15 @@ public class UserRegistrationRequest {
     private String email;
 
     private String firstName;
-
     private String lastName;
-
     private String phone;
-
     private String organization;
-
-    @NotBlank(message = "Role is required")
-    private String role;
 
     public UserRegistrationRequest() {}
 
     public UserRegistrationRequest(String username, String password, String email,
                                    String firstName, String lastName, String phone,
-                                   String organization, String role) {
+                                   String organization) {
         this.username = username;
         this.password = password;
         this.email = email;
@@ -39,7 +40,6 @@ public class UserRegistrationRequest {
         this.lastName = lastName;
         this.phone = phone;
         this.organization = organization;
-        this.role = role;
     }
 
     public String getUsername() { return username; }
@@ -62,7 +62,4 @@ public class UserRegistrationRequest {
 
     public String getOrganization() { return organization; }
     public void setOrganization(String organization) { this.organization = organization; }
-
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
 }

@@ -54,8 +54,7 @@ public class UserControllerTest {
             "Test",
             "Registrant",
             "123-456-7890",
-            "TestOrg",
-            "ROLE_VIEWER"
+            "TestOrg"
         );
         org.springframework.http.ResponseEntity<?> response = userController.registerUser(request);
         assertEquals(org.springframework.http.HttpStatus.OK, response.getStatusCode());

@@ -41,7 +41,7 @@ export default function RegisterPage() {
 
     const [form, setForm] = useState({
         firstName: '', lastName: '', username: '', email: '',
-        password: '', confirmPassword: '', phone: '', organization: '', role: '',
+        password: '', confirmPassword: '', phone: '', organization: '',
     });
     const [agreed, setAgreed] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -59,8 +59,8 @@ export default function RegisterPage() {
         setError('');
         setSuccess('');
 
-        if (!form.username || !form.password || !form.role) {
-            const msg = 'Username, password, and role are required.';
+        if (!form.username || !form.password) {
+            const msg = 'Username and password are required.';
             setError(msg);
             showToast(msg, 'error');
             return;
@@ -94,7 +94,7 @@ export default function RegisterPage() {
                 password: form.password,
                 phone: form.phone,
                 organization: form.organization,
-                role: form.role,
+                // No `role` field — backend always assigns ROLE_VIEWER for self-registration
             });
             showToast('Account created successfully!', 'success');
             // Redirect to /login with ?registered flag — mirrors Thymeleaf redirect
@@ -199,23 +199,20 @@ export default function RegisterPage() {
                                 placeholder="Your company" value={form.organization} onChange={handle('organization')} />
                         </div>
 
-                        {/* Role */}
+                        {/* Access Level Notice — replaces the old Role selector */}
                         <div className="form-group full">
-                            <label className="form-label" htmlFor="role">
-                                Role <span style={{ color: '#e05' }}>*</span>
-                            </label>
-                            <select id="role" name="role" className="form-input" required
-                                value={form.role} onChange={handle('role')}>
-                                <option value="" disabled>Select a role</option>
-                                <option value="ROLE_VIEWER">👁 VIEWER (Read-Only)</option>
-                                <option value="ROLE_SECURITY_ANALYST">📊 SECURITY ANALYST (Analyze &amp; Report)</option>
-                                <option value="ROLE_INCIDENT_RESPONDER">⚙️ INCIDENT RESPONDER (Operate &amp; Respond)</option>
-                                <option value="ROLE_AUDITOR">📋 AUDITOR (Compliance &amp; Audit)</option>
-                                <option value="ROLE_INFRA_ENGINEER">🔧 INFRA ENGINEER (Infrastructure &amp; DevOps)</option>
-                                <option value="ROLE_SOC_MANAGER">🛡️ SOC MANAGER (Security Operations)</option>
-                                <option value="ROLE_DEVSECOPS">🚀 DEVSECOPS (DevSecOps Engineer)</option>
-                                <option value="ROLE_ADMIN">🛡️ ADMIN (Full Access)</option>
-                            </select>
+                            <div style={{
+                                background: 'rgba(58, 123, 213, 0.08)',
+                                border: '1px solid rgba(58, 123, 213, 0.3)',
+                                borderRadius: 6,
+                                padding: '10px 14px',
+                                fontSize: '0.8rem',
+                                color: 'var(--text-secondary, #94a3b8)',
+                                lineHeight: 1.6
+                            }}>
+                                <strong style={{ color: 'var(--highlight-blue, #3a7bd5)', display: 'block', marginBottom: 2 }}>🔒 Access Level: Viewer (Read-Only)</strong>
+                                All new accounts start with read-only Viewer access. A platform administrator can promote your role after registration.
+                            </div>
                         </div>
 
                         {/* Terms */}

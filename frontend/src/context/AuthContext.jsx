@@ -11,6 +11,16 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import dashboardService from '../services/dashboardService.js';
 import authService from '../services/authService.js';
 
+// ── Early theme application (before React renders) ───────────────────────────
+// Reads from localStorage so the correct theme is applied before the server
+// responds to /api/dashboard/user, preventing a flash-of-wrong-theme.
+; (() => {
+    const savedTheme = localStorage.getItem('sentinelcore_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.style.colorScheme = savedTheme;
+    document.body && document.body.setAttribute('data-theme', savedTheme);
+})();
+
 const AuthContext = createContext(null);
 
 const ROLE_PERMISSIONS = {
@@ -75,6 +85,8 @@ export function AuthProvider({ children }) {
         document.documentElement.setAttribute('data-theme', resolvedTheme);
         document.documentElement.style.colorScheme = resolvedTheme;
         document.body.setAttribute('data-theme', resolvedTheme);
+        // Persist so the early-init IIFE can read it on the next page load
+        localStorage.setItem('sentinelcore_theme', resolvedTheme);
     }, []);
 
     /**
@@ -145,7 +157,9 @@ export function AuthProvider({ children }) {
             await authService.logout();
         } catch { /* ignore errors during logout */ }
         setUser(null);
-        applyTheme('light');
+        // Reset theme to dark on logout — matches the login page default
+        localStorage.setItem('sentinelcore_theme', 'dark');
+        applyTheme('dark');
         window.location.href = '/login?logout';
     }, [applyTheme]);
 

@@ -29,11 +29,14 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /** Register a new user. Throws if username/email already taken. */
+    /** Register a new user. Throws if username/email already taken.
+     *  Role is NOT caller-controlled: all self-registrations receive ROLE_VIEWER.
+     *  Admins promote users via UsersPage/assignRole.
+     */
     @Transactional
     public User register(String username, String email, String password,
                          String firstName, String lastName, String phone,
-                         String organization, String role) {
+                         String organization) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Username already exists: " + username);
         }
@@ -48,7 +51,7 @@ public class UserService {
         user.setOrganization(organization);
 
         // SECURITY: Always assign ROLE_VIEWER on self-registration.
-        // Never trust the role value from the client — admins must promote via Users page.
+        // Never trust role from the client — admins must promote via Users page.
         roleRepository.findByName("ROLE_VIEWER").ifPresent(r -> user.getRoles().add(r));
 
         return userRepository.save(Objects.requireNonNull(user, "user"));

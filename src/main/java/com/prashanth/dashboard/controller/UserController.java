@@ -50,24 +50,7 @@ public class UserController {
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest request) {
         log.info("Received registration request for username: {}", request.getUsername());
         try {
-            if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Username is required."));
-            }
-            if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Password is required."));
-            }
-            if (request.getPassword().length() < 6) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Password must be at least 6 characters."));
-            }
-            if (request.getRole() == null || request.getRole().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Role is required."));
-            }
-            if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
-                if (!request.getEmail().matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
-                    return ResponseEntity.badRequest().body(Map.of("message", "Please enter a valid email address."));
-                }
-            }
-
+            // @Valid on the DTO handles blank/length constraints — only business-rule checks here.
             User registered = userService.register(
                 request.getUsername().trim(),
                 request.getEmail() != null ? request.getEmail().trim() : null,
@@ -75,10 +58,8 @@ public class UserController {
                 request.getFirstName(),
                 request.getLastName(),
                 request.getPhone(),
-                request.getOrganization(),
-                request.getRole()
+                request.getOrganization()
             );
-
             log.info("User registered successfully: {}", registered.getUsername());
             return ResponseEntity.ok(UserMapper.toResponse(registered));
         } catch (IllegalArgumentException e) {
