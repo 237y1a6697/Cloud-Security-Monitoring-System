@@ -50,13 +50,20 @@ public class AuditLogController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "timestamp") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir) {
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String outcome,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         
         Sort sort = sortDir.equalsIgnoreCase("desc") ? 
             Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<AuditLog> auditLogs = auditLogService.getAllAuditLogs(pageable);
+        LocalDateTime startLocal = parseStartDate(startDate);
+        LocalDateTime endLocal = parseEndDate(endDate);
+        
+        Page<AuditLog> auditLogs = auditLogService.getFilteredAuditLogs(search, outcome, startLocal, endLocal, pageable);
         return ResponseEntity.ok(auditLogs);
     }
 
@@ -104,10 +111,18 @@ public class AuditLogController {
 
     @GetMapping("/export/csv")
     @Auditable(action = "AUDIT_LOG_EXPORT_CSV")
-    public ResponseEntity<byte[]> exportCsv() {
-        List<AuditLog> logs = auditLogService.getAllAuditLogs();
+    public ResponseEntity<byte[]> exportCsv(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String outcome,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        LocalDateTime startLocal = parseStartDate(startDate);
+        LocalDateTime endLocal = parseEndDate(endDate);
+        
+        List<AuditLog> logs = auditLogService.getFilteredAuditLogsList(search, outcome, startLocal, endLocal, Sort.by(Sort.Direction.DESC, "timestamp"));
         StringBuilder sb = new StringBuilder();
-        sb.append("ID,Timestamp,Username,Role,IP Address,Action,Result,Device/Browser\n");
+        sb.append("ID,Timestamp,Username,Role,IP Address,Action,Result,Device/Browser,Evidence\n");
         for (AuditLog log : logs) {
             sb.append(log.getId()).append(",")
               .append(log.getTimestamp() != null ? log.getTimestamp().toString() : "").append(",")
@@ -116,7 +131,8 @@ public class AuditLogController {
               .append(escapeCsv(log.getIpAddress())).append(",")
               .append(escapeCsv(log.getAction())).append(",")
               .append(escapeCsv(log.getResult())).append(",")
-              .append(escapeCsv(log.getDeviceBrowser())).append("\n");
+              .append(escapeCsv(log.getDeviceBrowser())).append(",")
+              .append(escapeCsv(log.getEvidence())).append("\n");
         }
         
         byte[] csvBytes = sb.toString().getBytes(StandardCharsets.UTF_8);
@@ -128,8 +144,16 @@ public class AuditLogController {
 
     @GetMapping("/export/pdf")
     @Auditable(action = "AUDIT_LOG_EXPORT_PDF")
-    public ResponseEntity<byte[]> exportPdf() throws Exception {
-        List<AuditLog> logs = auditLogService.getAllAuditLogs();
+    public ResponseEntity<byte[]> exportPdf(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String outcome,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws Exception {
+        
+        LocalDateTime startLocal = parseStartDate(startDate);
+        LocalDateTime endLocal = parseEndDate(endDate);
+        
+        List<AuditLog> logs = auditLogService.getFilteredAuditLogsList(search, outcome, startLocal, endLocal, Sort.by(Sort.Direction.DESC, "timestamp"));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         
         Document document = new Document(PageSize.A4.rotate());
@@ -147,17 +171,17 @@ public class AuditLogController {
         date.setSpacingAfter(10);
         document.add(date);
         
-        PdfPTable table = new PdfPTable(7);
+        PdfPTable table = new PdfPTable(8);
         table.setWidthPercentage(100f);
-        table.setWidths(new float[]{1.0f, 3.0f, 2.5f, 2.5f, 2.5f, 3.5f, 2.0f});
+        table.setWidths(new float[]{0.8f, 2.5f, 2.0f, 2.0f, 2.0f, 2.5f, 1.5f, 2.7f});
         
-        Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-        String[] headersList = {"ID", "Timestamp", "Username", "Role", "IP Address", "Action", "Result"};
+        Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+        String[] headersList = {"ID", "Timestamp", "Username", "Role", "IP Address", "Action", "Result", "Evidence"};
         for (String headerTitle : headersList) {
             PdfPCell cell = new PdfPCell(new Phrase(headerTitle, headFont));
             cell.setHorizontalAlignment(Element.ALIGN_CENTER);
             cell.setBackgroundColor(new Color(226, 230, 238));
-            cell.setPadding(6);
+            cell.setPadding(5);
             table.addCell(cell);
         }
         
@@ -170,6 +194,7 @@ public class AuditLogController {
             table.addCell(new Phrase(log.getIpAddress() != null ? log.getIpAddress() : "", cellFont));
             table.addCell(new Phrase(log.getAction() != null ? log.getAction() : "", cellFont));
             table.addCell(new Phrase(log.getResult() != null ? log.getResult() : "", cellFont));
+            table.addCell(new Phrase(log.getEvidence() != null ? log.getEvidence() : "", cellFont));
         }
         
         document.add(table);
@@ -180,6 +205,37 @@ public class AuditLogController {
         responseHeaders.set(HttpHeaders.CONTENT_TYPE, "application/pdf");
         responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit_logs.pdf\"");
         return new ResponseEntity<>(pdfBytes, responseHeaders, HttpStatus.OK);
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/evidence")
+    @Auditable(action = "AUDIT_LOG_ATTACH_EVIDENCE")
+    public ResponseEntity<AuditLog> attachEvidence(
+            @PathVariable Long id,
+            @RequestParam String filename) {
+        AuditLog updatedLog = auditLogService.addEvidence(id, filename);
+        return ResponseEntity.ok(updatedLog);
+    }
+
+    private LocalDateTime parseStartDate(String startDate) {
+        if (startDate != null && !startDate.trim().isEmpty()) {
+            try {
+                return LocalDateTime.parse(startDate.trim() + "T00:00:00");
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
+    private LocalDateTime parseEndDate(String endDate) {
+        if (endDate != null && !endDate.trim().isEmpty()) {
+            try {
+                return LocalDateTime.parse(endDate.trim() + "T23:59:59");
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        return null;
     }
 
     private String escapeCsv(String value) {

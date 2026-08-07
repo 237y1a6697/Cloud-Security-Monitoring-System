@@ -24,18 +24,12 @@ export default function AuditLogsPage() {
 
     // Detail drawer & Evidence repository
     const [drawerLog, setDrawerLog] = useState(null);
-    const [evidenceDb, setEvidenceDb] = useState({
-        // Map log.id -> array of evidence filenames
-        1: ['saml_auth_challenge.json', 'user_ip_verification.log'],
-        2: ['db_query_intent_pci.sql'],
-        3: ['admin_config_diff.json']
-    });
     const [newEvidenceName, setNewEvidenceName] = useState('');
 
     async function fetchAuditLogsAndStats() {
         try {
             const [logsRes, statsRes] = await Promise.all([
-                auditService.getAll(page, size),
+                auditService.getAll(page, size, 'timestamp', 'desc', searchTerm, outcomeFilter, startDate, endDate),
                 auditService.getStats()
             ]);
             if (logsRes.data) {
@@ -45,51 +39,31 @@ export default function AuditLogsPage() {
             if (statsRes.data) {
                 setStats(statsRes.data);
             }
-        } catch {
+        } catch (error) {
+            console.error('Failed to load audit logs:', error);
             showToast('Failed to load audit logs data', 'error');
         }
     }
 
+    // Reset pagination to page 0 whenever filter conditions change
     useEffect(() => {
+        setPage(0);
+    }, [searchTerm, outcomeFilter, startDate, endDate]);
+
+    // Fetch matching data whenever page or filters get updated
+    useEffect(() => {
+        setLoading(true);
         fetchAuditLogsAndStats().then(() => setLoading(false));
-    }, [page]);
-
-    // Client-side filtering taking into account all custom parameters
-    const filteredLogs = logs.filter((log) => {
-        const term = searchTerm.toLowerCase();
-        const matchesTerm = (
-            (log.username?.toLowerCase() || '').includes(term) ||
-            (log.action?.toLowerCase() || '').includes(term) ||
-            (log.ipAddress?.toLowerCase() || '').includes(term) ||
-            (log.result?.toLowerCase() || '').includes(term)
-        );
-
-        const matchesOutcome = !outcomeFilter || log.result === outcomeFilter;
-
-        let matchesDates = true;
-        if (log.timestamp) {
-            const tDate = new Date(log.timestamp);
-            if (startDate) {
-                const sDate = new Date(startDate);
-                if (tDate < sDate) matchesDates = false;
-            }
-            if (endDate) {
-                const eDate = new Date(endDate);
-                if (tDate > eDate) matchesDates = false;
-            }
-        }
-
-        return matchesTerm && matchesOutcome && matchesDates;
-    });
+    }, [page, searchTerm, outcomeFilter, startDate, endDate]);
 
     const triggerExport = (format) => {
         showToast(`Generating ${format.toUpperCase()} transaction ledger...`);
-        auditService.exportLogs(format)
+        auditService.exportLogs(format, searchTerm, outcomeFilter, startDate, endDate)
             .then((response) => {
                 const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
                 const link = document.createElement('a');
                 link.href = window.URL.createObjectURL(blob);
-                link.download = `audit_logs.${format}`;
+                link.download = `audit_logs_${new Date().toISOString().split('T')[0]}.${format}`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -107,16 +81,24 @@ export default function AuditLogsPage() {
             showToast('Please enter a valid evidence filename', 'error');
             return;
         }
-        const currentList = evidenceDb[logId] || [];
-        setEvidenceDb({
-            ...evidenceDb,
-            [logId]: [...currentList, newEvidenceName.trim()]
-        });
-        setNewEvidenceName('');
-        showToast('Evidence bound to cryptographic audit trail!', 'success');
+        showToast('Binding evidence to cryptographic audit trail...');
+        auditService.attachEvidence(logId, newEvidenceName.trim())
+            .then((response) => {
+                // Update specific log in key logs state and active drawer log state
+                const updated = response.data;
+                setLogs(logs.map(l => l.id === logId ? updated : l));
+                setDrawerLog(updated);
+                setNewEvidenceName('');
+                showToast('Evidence bound to cryptographic audit trail!', 'success');
+            })
+            .catch((error) => {
+                console.error('Binding evidence failed:', error);
+                showToast('Failed to attach evidence.', 'error');
+            });
     };
 
     return (
+
         <DashboardLayout>
             <style>{`
                 .drawer-overlay {
@@ -337,12 +319,12 @@ export default function AuditLogsPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredLogs.length === 0 ? (
+                                    {logs.length === 0 ? (
                                         <tr>
                                             <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No audit logs found.</td>
                                         </tr>
                                     ) : (
-                                        filteredLogs.map((log) => (
+                                        logs.map((log) => (
                                             <tr key={log.id}>
                                                 <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                                     {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
@@ -417,13 +399,13 @@ export default function AuditLogsPage() {
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Immutable audit artifacts mapping this action validation check.</p>
 
                             <div className="evidence-list">
-                                {(evidenceDb[drawerLog.id] || []).map((file, idx) => (
+                                {(drawerLog.evidence ? drawerLog.evidence.split(',') : []).map((file, idx) => (
                                     <div key={idx} className="evidence-item">
                                         <span><i className="ph ph-file-text" style={{ marginRight: 6, color: '#3a7bd5' }} /> {file}</span>
                                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => showToast('Opening audit evidence file...')}>Verify SHA256</span>
                                     </div>
                                 ))}
-                                {(!evidenceDb[drawerLog.id] || evidenceDb[drawerLog.id].length === 0) && (
+                                {(!drawerLog.evidence || drawerLog.evidence.trim() === '') && (
                                     <div style={{ padding: 14, textAlign: 'center', fontSize: '0.75rem', border: '1px dashed var(--border-color)', color: 'var(--text-muted)', borderRadius: 4 }}>
                                         No evidence attached.
                                     </div>
@@ -451,5 +433,6 @@ export default function AuditLogsPage() {
                 </div>
             )}
         </DashboardLayout>
+
     );
 }

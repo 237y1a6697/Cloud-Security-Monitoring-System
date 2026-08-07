@@ -25,6 +25,9 @@ import com.prashanth.dashboard.repository.RoleRepository;
 import com.prashanth.dashboard.repository.UserRepository;
 import com.prashanth.dashboard.repository.VulnerabilityRepository;
 
+import com.prashanth.dashboard.model.AuditLog;
+import com.prashanth.dashboard.repository.AuditLogRepository;
+
 @Component
 public class DataInitializer implements CommandLineRunner {
 
@@ -35,7 +38,8 @@ public class DataInitializer implements CommandLineRunner {
     private final IncidentRepository incidentRepository;
     private final AlertRepository alertRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
-        private final NotificationRepository notificationRepository;
+    private final NotificationRepository notificationRepository;
+    private final AuditLogRepository auditLogRepository;
 
     public DataInitializer(UserRepository userRepository,
                            RoleRepository roleRepository,
@@ -44,7 +48,8 @@ public class DataInitializer implements CommandLineRunner {
                            IncidentRepository incidentRepository,
                            AlertRepository alertRepository,
                            VulnerabilityRepository vulnerabilityRepository,
-                           NotificationRepository notificationRepository) {
+                           NotificationRepository notificationRepository,
+                           AuditLogRepository auditLogRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
@@ -53,6 +58,7 @@ public class DataInitializer implements CommandLineRunner {
         this.alertRepository = alertRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.notificationRepository = notificationRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Override
@@ -219,6 +225,64 @@ public class DataInitializer implements CommandLineRunner {
                           "audit-logs",
                           null
                   ));
+          }
+
+          // Seed audit logs
+          if (auditLogRepository.count() == 0) {
+              AuditLog log1 = new AuditLog();
+              log1.setUsername("admin");
+              log1.setRole("ROLE_SUPER_ADMIN");
+              log1.setIpAddress("10.0.4.15");
+              log1.setAction("USER_LOGIN_SUCCESS");
+              log1.setResult("SUCCESS");
+              log1.setDeviceBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
+              log1.setEvidence("saml_auth_challenge.json,user_ip_verification.log");
+              log1.setTimestamp(LocalDateTime.now().minusHours(24));
+              auditLogRepository.save(log1);
+
+              AuditLog log2 = new AuditLog();
+              log2.setUsername("viewer");
+              log2.setRole("ROLE_VIEWER");
+              log2.setIpAddress("192.168.1.45");
+              log2.setAction("USER_LOGIN_FAILED");
+              log2.setResult("FAILED");
+              log2.setDeviceBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
+              log2.setEvidence("");
+              log2.setTimestamp(LocalDateTime.now().minusHours(18).plusMinutes(10));
+              auditLogRepository.save(log2);
+
+              AuditLog log3 = new AuditLog();
+              log3.setUsername("viewer");
+              log3.setRole("ROLE_VIEWER");
+              log3.setIpAddress("192.168.1.45");
+              log3.setAction("USER_LOGIN_SUCCESS");
+              log3.setResult("SUCCESS");
+              log3.setDeviceBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
+              log3.setEvidence("user_ip_verification.log");
+              log3.setTimestamp(LocalDateTime.now().minusHours(18).plusMinutes(12));
+              auditLogRepository.save(log3);
+
+              AuditLog log4 = new AuditLog();
+              log4.setUsername("admin");
+              log4.setRole("ROLE_SUPER_ADMIN");
+              log4.setIpAddress("10.0.4.15");
+              log4.setAction("DATABASE_PCI_QUERY");
+              log4.setResult("DENIED");
+              log4.setDeviceBrowser("DBeaver Enterprise 23.1");
+              log4.setEvidence("db_query_intent_pci.sql");
+              log4.setTimestamp(LocalDateTime.now().minusHours(5));
+              auditLogRepository.save(log4);
+
+              AuditLog log5 = new AuditLog();
+              log5.setUsername("devops");
+              log5.setRole("ROLE_DEVSECOPS");
+              log5.setIpAddress("10.1.2.98");
+              log5.setAction("FIREWALL_RULE_MODIFY");
+              log5.setResult("SUCCESS");
+              log5.setDeviceBrowser("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36");
+              log5.setEvidence("fortinet_payload_diff.json,change_request_18992.pdf");
+              log5.setTimestamp(LocalDateTime.now().minusHours(1));
+              auditLogRepository.save(log5);
           }
     }
 

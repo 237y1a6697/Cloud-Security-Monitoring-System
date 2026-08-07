@@ -33,6 +33,9 @@ public class AuditLog {
     @Column(columnDefinition = "TEXT")
     private String result; // e.g. "SUCCESS", "DENIED"
 
+    @Column(columnDefinition = "TEXT")
+    private String evidence; // e.g. "saml_auth_challenge.json,user_ip_verification.log"
+
     public AuditLog() {
         this.timestamp = LocalDateTime.now();
     }
@@ -58,4 +61,6 @@ public class AuditLog {
     public void setNewValue(String newValue) { this.newValue = newValue; }
     public String getResult() { return result; }
     public void setResult(String result) { this.result = result; }
+    public String getEvidence() { return evidence; }
+    public void setEvidence(String evidence) { this.evidence = evidence; }
 }
