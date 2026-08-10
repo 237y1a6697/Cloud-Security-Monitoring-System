@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout.jsx';
 import { useToast } from '../../components/common/Toast/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -19,15 +19,36 @@ export default function ReportsPage() {
     const [reportType, setReportType] = useState('dashboard');
     const [reportFormat, setReportFormat] = useState('pdf');
 
-    // Scheduler states
-    const [schedules, setSchedules] = useState([
-        { type: 'Executive Summary', freq: 'Weekly', time: 'Monday at 08:00 UTC', email: 'secops-team@sentinelcore.com' },
-        { type: 'Vulnerability CVE Report', freq: 'Monthly', time: '1st of the month at 00:00 UTC', email: 'compliance@sentinelcore.com' }
-    ]);
-    const [schedType, setSchedType] = useState('Executive Summary');
-    const [schedFreq, setSchedFreq] = useState('Daily');
-    const [schedTime, setSchedTime] = useState('00:00');
+    // Scheduler states — backed by /api/reports/schedules
+    const [schedules, setSchedules] = useState([]);
+    const [schedulesLoading, setSchedulesLoading] = useState(true);
+    const [schedType, setSchedType] = useState('EXECUTIVE_SUMMARY');
+    const [schedFreq, setSchedFreq] = useState('DAILY');
+    const [schedTime, setSchedTime] = useState('08:00');
     const [schedEmail, setSchedEmail] = useState('');
+    const [schedSubmitting, setSchedSubmitting] = useState(false);
+
+    const REPORT_TYPE_LABELS = {
+        EXECUTIVE_SUMMARY: 'Executive Summary',
+        IT_ASSETS_LOG: 'IT Assets Log',
+        SECURITY_INCIDENTS: 'Security Incidents',
+        VULNERABILITY_CVE: 'Vulnerability CVE',
+    };
+
+    const fetchSchedules = useCallback(async () => {
+        setSchedulesLoading(true);
+        try {
+            const res = await axiosInstance.get('/api/reports/schedules');
+            setSchedules(res.data || []);
+        } catch (err) {
+            console.error('Failed to load schedules', err);
+            // silently degrade — permission errors are expected for low-privilege users
+        } finally {
+            setSchedulesLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
     // Email dispatcher states
     const [dispatchEmail, setDispatchEmail] = useState('');
@@ -513,12 +534,12 @@ export default function ReportsPage() {
             const pdfBase64 = await html2pdf().from(container).set(opt).outputPdf('datauristring');
 
             const result = await sendReportEmail({
-                    to: dispatchEmail.trim(),
-                    subject: `SentinelCore SecureOps - Security Report: ${reportType.toUpperCase()}`,
-                    body: `Please review conflicts, warnings, or anomalies in the attached system summary report for ${reportType}.`,
-                    reportType: reportType,
-                    fileName: `sentinelcore_${reportType}_report.pdf`,
-                    attachmentBase64: pdfBase64
+                to: dispatchEmail.trim(),
+                subject: `SentinelCore SecureOps - Security Report: ${reportType.toUpperCase()}`,
+                body: `Please review conflicts, warnings, or anomalies in the attached system summary report for ${reportType}.`,
+                reportType: reportType,
+                fileName: `sentinelcore_${reportType}_report.pdf`,
+                attachmentBase64: pdfBase64
             });
 
             if (result?.message) {
@@ -540,11 +561,11 @@ export default function ReportsPage() {
         showToast(`Triggering manual scheduler test delivery to ${email}...`, 'info');
         try {
             const response = await sendReportEmail({
-                    to: email,
-                    subject: `Scheduled SentinelCore Incident Summary - Test`,
-                    body: `Manual execution check for scheduled cron report: ${type}.`,
-                    reportType: 'dashboard',
-                    fileName: 'cron_test_summary.pdf'
+                to: email,
+                subject: `Scheduled SentinelCore Incident Summary - Test`,
+                body: `Manual execution check for scheduled cron report: ${type}.`,
+                reportType: 'dashboard',
+                fileName: 'cron_test_summary.pdf'
             });
             if (response?.message) {
                 showToast(`Report emailed successfully.`, 'success');
@@ -558,21 +579,61 @@ export default function ReportsPage() {
         }
     };
 
-    const handleAddDeliverySchedule = (e) => {
+    const handleAddDeliverySchedule = async (e) => {
         e.preventDefault();
+        if (!hasPermission('REPORT_EXPORT')) {
+            Swal.fire({ title: 'Access Denied', text: 'You need REPORT_EXPORT permission to manage schedules.', icon: 'error' });
+            return;
+        }
         if (!schedEmail || !schedEmail.includes('@')) {
             showToast('Please enter a valid subscriber email address', 'error');
             return;
         }
-        const newSched = {
-            type: schedType,
-            freq: schedFreq,
-            time: `Every ${schedFreq === 'Daily' ? 'day' : schedFreq === 'Weekly' ? 'Monday' : 'Month'} at ${schedTime} UTC`,
-            email: schedEmail.trim()
-        };
-        setSchedules([...schedules, newSched]);
-        setSchedEmail('');
-        showToast('Cron compliance report delivery slot registered!', 'success');
+        setSchedSubmitting(true);
+        try {
+            await axiosInstance.post('/api/reports/schedules', {
+                reportType: schedType,
+                frequency: schedFreq,
+                utcTime: schedTime,
+                recipientEmail: schedEmail.trim()
+            });
+            showToast('Automated delivery schedule created successfully!', 'success');
+            setSchedEmail('');
+            await fetchSchedules();
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Failed to create schedule.';
+            showToast(msg, 'error');
+        } finally {
+            setSchedSubmitting(false);
+        }
+    };
+
+    const handleToggleSchedule = async (id) => {
+        try {
+            await axiosInstance.patch(`/api/reports/schedules/${id}/toggle`);
+            await fetchSchedules();
+        } catch (err) {
+            showToast('Failed to toggle schedule status.', 'error');
+        }
+    };
+
+    const handleDeleteSchedule = async (id) => {
+        const result = await Swal.fire({
+            title: 'Delete Schedule?',
+            text: 'This cron job will be permanently removed.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Delete'
+        });
+        if (!result.isConfirmed) return;
+        try {
+            await axiosInstance.delete(`/api/reports/schedules/${id}`);
+            showToast('Schedule deleted.', 'success');
+            await fetchSchedules();
+        } catch (err) {
+            showToast('Failed to delete schedule.', 'error');
+        }
     };
 
     return (
@@ -658,53 +719,108 @@ export default function ReportsPage() {
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <div style={{ flex: 1 }}>
                                     <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Report Type</label>
-                                    <select value={schedType} onChange={e => setSchedType(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
-                                        <option value="Executive Summary">Executive Summary</option>
-                                        <option value="IT Assets Log Report">IT Assets Log Report</option>
-                                        <option value="Security Incidents History">Security Incidents History</option>
-                                        <option value="Vulnerability CVE Report">Vulnerability CVE Report</option>
+                                    <select id="sched-report-type" value={schedType} onChange={e => setSchedType(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+                                        <option value="EXECUTIVE_SUMMARY">Executive Summary</option>
+                                        <option value="IT_ASSETS_LOG">IT Assets Log</option>
+                                        <option value="SECURITY_INCIDENTS">Security Incidents</option>
+                                        <option value="VULNERABILITY_CVE">Vulnerability CVE</option>
                                     </select>
                                 </div>
-                                <div style={{ width: 100 }}>
+                                <div style={{ width: 105 }}>
                                     <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Frequency</label>
-                                    <select value={schedFreq} onChange={e => setSchedFreq(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
-                                        <option value="Daily">Daily</option>
-                                        <option value="Weekly">Weekly</option>
-                                        <option value="Monthly">Monthly</option>
+                                    <select id="sched-frequency" value={schedFreq} onChange={e => setSchedFreq(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}>
+                                        <option value="DAILY">Daily</option>
+                                        <option value="WEEKLY">Weekly (Mon)</option>
+                                        <option value="MONTHLY">Monthly (1st)</option>
                                     </select>
                                 </div>
-                                <div style={{ width: 80 }}>
+                                <div style={{ width: 82 }}>
                                     <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>UTC Time</label>
-                                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+                                    <input id="sched-utctime" type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
                                 </div>
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Recipient Subscriber Email</label>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Recipient Email</label>
                                 <div style={{ display: 'flex', gap: 8 }}>
-                                    <input type="email" placeholder="subscriber@corp.com" value={schedEmail} onChange={e => setSchedEmail(e.target.value)} style={{ flex: 1, padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
-                                    <button type="submit" className="btn" style={{ width: 'auto', padding: '0 16px', fontSize: '0.78rem' }}>Schedule</button>
+                                    <input id="sched-recipient-email" type="email" placeholder="subscriber@corp.com" value={schedEmail} onChange={e => setSchedEmail(e.target.value)} style={{ flex: 1, padding: '6px 8px', fontSize: '0.78rem', background: 'var(--bg-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }} />
+                                    <button id="sched-submit-btn" type="submit" className="btn" style={{ width: 'auto', padding: '0 16px', fontSize: '0.78rem' }} disabled={schedSubmitting}>
+                                        {schedSubmitting ? 'Saving...' : 'Schedule'}
+                                    </button>
                                 </div>
                             </div>
                         </form>
                     </div>
 
-                    {/* Active Schedules List */}
+                    {/* Active Schedules Table */}
                     <div className="panel-card">
-                        <h2 className="panel-title" style={{ marginBottom: 15 }}><i className="ph ph-clock" style={{ marginRight: 6 }} /> Active Security Cron Schedules</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {schedules.map((s, idx) => (
-                                <div key={idx} style={{ padding: 12, background: 'var(--bg-inset)', borderRadius: 6, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div>
-                                        <strong style={{ fontSize: '0.8rem', display: 'block' }}>{s.type}</strong>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="ph ph-timer" /> {s.time}</span>
-                                    </div>
-                                    <div style={{ textAlignment: 'right' }}>
-                                        <div style={{ fontSize: '0.74rem', fontWeight: 600 }}>{s.email}</div>
-                                        <span style={{ fontSize: '0.66rem', color: 'var(--success-green)', cursor: 'pointer' }} onClick={() => triggerTestDispatch(s.email, s.type)}>Test dispatch</span>
-                                    </div>
-                                </div>
-                            ))}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                            <h2 className="panel-title" style={{ margin: 0 }}><i className="ph ph-clock" style={{ marginRight: 6 }} /> Active Security Cron Schedules</h2>
+                            <button onClick={fetchSchedules} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '0.78rem' }}>
+                                <i className="ph ph-arrows-clockwise" /> Refresh
+                            </button>
                         </div>
+
+                        {schedulesLoading ? (
+                            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 24, fontSize: '0.82rem' }}>
+                                <i className="ph ph-spinner" /> Loading schedules...
+                            </div>
+                        ) : schedules.length === 0 ? (
+                            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 24, fontSize: '0.82rem' }}>
+                                No automated delivery schedules configured.
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
+                                    <thead>
+                                        <tr style={{ background: 'var(--bg-inset)', textAlign: 'left' }}>
+                                            {['Report Type', 'Recipient', 'Freq', 'UTC Time', 'Next Run', 'Last Run', 'Status', '', ''].map(h => (
+                                                <th key={h} style={{ padding: '7px 10px', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.7rem' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {schedules.map(s => {
+                                            const statusColor = s.lastStatus === 'SENT' ? '#16a34a' : s.lastStatus === 'FAILED' ? '#dc2626' : '#d97706';
+                                            const statusBg = s.lastStatus === 'SENT' ? '#dcfce7' : s.lastStatus === 'FAILED' ? '#fee2e2' : '#fef3c7';
+                                            const fmtDt = (dt) => dt ? new Date(dt + 'Z').toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                                            return (
+                                                <tr key={s.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: s.enabled ? 1 : 0.45 }}>
+                                                    <td style={{ padding: '7px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>{REPORT_TYPE_LABELS[s.reportType] || s.reportType}</td>
+                                                    <td style={{ padding: '7px 10px', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.recipientEmail}>{s.recipientEmail}</td>
+                                                    <td style={{ padding: '7px 10px', whiteSpace: 'nowrap' }}>{s.frequency}</td>
+                                                    <td style={{ padding: '7px 10px', fontFamily: 'monospace' }}>{s.utcTime} UTC</td>
+                                                    <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{fmtDt(s.nextRunAt)}</td>
+                                                    <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{fmtDt(s.lastRunAt)}</td>
+                                                    <td style={{ padding: '7px 10px' }}>
+                                                        <span style={{ background: statusBg, color: statusColor, padding: '2px 7px', borderRadius: 4, fontWeight: 700, fontSize: '0.68rem' }}>
+                                                            {s.lastStatus}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '7px 6px', whiteSpace: 'nowrap' }}>
+                                                        <button
+                                                            title={s.enabled ? 'Disable' : 'Enable'}
+                                                            onClick={() => handleToggleSchedule(s.id)}
+                                                            style={{ background: s.enabled ? '#dcfce7' : '#f1f5f9', color: s.enabled ? '#16a34a' : '#64748b', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}
+                                                        >
+                                                            {s.enabled ? 'ON' : 'OFF'}
+                                                        </button>
+                                                    </td>
+                                                    <td style={{ padding: '7px 6px' }}>
+                                                        <button
+                                                            title="Delete schedule"
+                                                            onClick={() => handleDeleteSchedule(s.id)}
+                                                            style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}
+                                                        >
+                                                            <i className="ph ph-trash" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
