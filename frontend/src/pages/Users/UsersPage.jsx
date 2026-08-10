@@ -167,7 +167,10 @@ export default function UsersPage() {
                                     </tr>
                                 ) : (
                                     users.map((user) => {
-                                        const primaryRole = user.roles && user.roles.length > 0 ? user.roles[0].name : 'ROLE_VIEWER';
+                                        const role =
+                                            user.primaryRoleName ||
+                                            user.roles?.[0] ||
+                                            "No Role";
                                         return (
                                             <tr key={user.id}>
                                                 <td>{user.id}</td>
@@ -176,16 +179,17 @@ export default function UsersPage() {
                                                 <td>
                                                     {hasPermission('ROLE_ASSIGN') ? (
                                                         <select
-                                                            value={primaryRole}
-                                                            onChange={(e) => handleRoleChange(user.id, user.username, primaryRole, e.target.value)}
+                                                            value={role}
+                                                            onChange={(e) => handleRoleChange(user.id, user.username, role, e.target.value)}
                                                             style={{ padding: '4px 8px', border: '1px solid var(--border-color)', borderRadius: 4, background: 'var(--bg-inset)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
                                                         >
-                                                            {roleOptions.map((role) => (
-                                                                <option key={role} value={role}>{role}</option>
+                                                            {role === "No Role" && <option value="No Role">No Role</option>}
+                                                            {roleOptions.map((opt) => (
+                                                                <option key={opt} value={opt}>{opt}</option>
                                                             ))}
                                                         </select>
                                                     ) : (
-                                                        <span className="badge badge-info">{primaryRole}</span>
+                                                        <span className="badge badge-info">{role}</span>
                                                     )}
                                                 </td>
                                                 <td>
