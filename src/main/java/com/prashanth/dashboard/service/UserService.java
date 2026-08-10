@@ -12,6 +12,7 @@ import com.prashanth.dashboard.repository.UserRepository;
 
 import java.util.Objects;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -29,6 +30,25 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Validates a username against the strict policy:
+     * Must start with A-Za-z, followed by 2-29 chars of [A-Za-z0-9._-].
+     * Total length: 3–30. No spaces, no @, no other special chars.
+     */
+    private static final Pattern USERNAME_PATTERN =
+            Pattern.compile("^[A-Za-z][A-Za-z0-9._-]{2,29}$");
+
+    private void validateUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required.");
+        }
+        if (!USERNAME_PATTERN.matcher(username).matches()) {
+            throw new IllegalArgumentException(
+                "Invalid username. Username must start with a letter and may contain only letters, numbers, '.', '_' or '-'."
+            );
+        }
+    }
+
     /** Register a new user. Throws if username/email already taken.
      *  Role is NOT caller-controlled: all self-registrations receive ROLE_VIEWER.
      *  Admins promote users via UsersPage/assignRole.
@@ -37,7 +57,9 @@ public class UserService {
     public User register(String username, String email, String password,
                          String firstName, String lastName, String phone,
                          String organization) {
-        if (userRepository.findByUsername(username).isPresent()) {
+        validateUsername(username);
+        // Case-insensitive duplicate check: "Prashanth" and "prashanth" are the same
+        if (userRepository.findByUsernameIgnoreCase(username).isPresent()) {
             throw new IllegalArgumentException("Username already exists: " + username);
         }
         if (email != null && !email.isBlank() && userRepository.findByEmail(email).isPresent()) {

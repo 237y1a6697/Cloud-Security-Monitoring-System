@@ -35,6 +35,10 @@ function computeStrength(val) {
     return { width: val ? widths[idx] : '0', background: val ? colors[idx] : 'transparent' };
 }
 
+// ── Username validation regex (must match backend rule) ──────────────────────
+const USERNAME_REGEX = /^[A-Za-z][A-Za-z0-9._-]{2,29}$/;
+const USERNAME_ERROR_MSG = "Username must start with a letter and contain only letters, numbers, '.', '_' or '-'.";
+
 export default function RegisterPage() {
     const navigate = useNavigate();
     const showToast = useToast();
@@ -47,11 +51,22 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [usernameError, setUsernameError] = useState('');
 
     const strength = computeStrength(form.password);
 
     function handle(field) {
-        return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
+        return (e) => {
+            const val = e.target.value;
+            setForm((prev) => ({ ...prev, [field]: val }));
+            if (field === 'username') {
+                if (val && !USERNAME_REGEX.test(val)) {
+                    setUsernameError(USERNAME_ERROR_MSG);
+                } else {
+                    setUsernameError('');
+                }
+            }
+        };
     }
 
     async function handleSubmit(e) {
@@ -62,6 +77,13 @@ export default function RegisterPage() {
         if (!form.username || !form.password) {
             const msg = 'Username and password are required.';
             setError(msg);
+            showToast(msg, 'error');
+            return;
+        }
+        if (!USERNAME_REGEX.test(form.username.trim())) {
+            const msg = USERNAME_ERROR_MSG;
+            setError(msg);
+            setUsernameError(msg);
             showToast(msg, 'error');
             return;
         }
@@ -149,8 +171,18 @@ export default function RegisterPage() {
                                 Username <span style={{ color: '#e05' }}>*</span>
                             </label>
                             <input type="text" id="reg-username" name="username" className="form-input"
-                                placeholder="Choose a unique username" required autoComplete="username"
-                                value={form.username} onChange={handle('username')} />
+                                placeholder="e.g. jane_smith or prashanth123" required autoComplete="username"
+                                value={form.username} onChange={handle('username')}
+                                style={usernameError ? { borderColor: '#e05252' } : {}}
+                            />
+                            {usernameError && (
+                                <p style={{ color: '#e05252', fontSize: '0.78rem', marginTop: 4, marginBottom: 0 }}>
+                                    {usernameError}
+                                </p>
+                            )}
+                            <p style={{ color: 'var(--text-muted, #64748b)', fontSize: '0.75rem', marginTop: 4, marginBottom: 0 }}>
+                                3–30 chars · start with a letter · allowed: letters, digits, <code>.</code> <code>_</code> <code>-</code>
+                            </p>
                         </div>
 
                         {/* Email */}

@@ -2,6 +2,7 @@ package com.prashanth.dashboard.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -13,7 +14,11 @@ import jakarta.validation.constraints.Size;
  */
 public class UserRegistrationRequest {
     @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+    @Size(min = 3, max = 30, message = "Username must be between 3 and 30 characters")
+    @Pattern(
+        regexp = "^[A-Za-z][A-Za-z0-9._-]{2,29}$",
+        message = "Invalid username. Username must start with a letter and may contain only letters, numbers, '.', '_' or '-'."
+    )
     private String username;
 
     @NotBlank(message = "Password is required")

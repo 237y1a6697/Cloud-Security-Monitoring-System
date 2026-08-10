@@ -42,12 +42,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        // Return the first field-error message directly so the client sees the exact constraint message
+        // (e.g., the @Pattern message for invalid usernames)
+        String firstMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .filter(m -> m != null && !m.isBlank())
+                .findFirst()
+                .orElse("Validation failed");
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("message", "Validation failed", "errors", errors.toString()));
+                .body(Map.of("message", firstMessage, "errors", errors.toString()));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
