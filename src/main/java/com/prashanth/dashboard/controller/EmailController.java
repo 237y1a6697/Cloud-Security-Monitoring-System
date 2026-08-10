@@ -68,4 +68,16 @@ public class EmailController {
             return ResponseEntity.status(500).body(Map.of("message", errorMsg));
         }
     }
+
+    /**
+     * Explicit rejection of GET requests to /api/reports/send-email.
+     * Without this, Spring's DispatcherServlet throws HttpRequestMethodNotSupportedException
+     * which the catch-all handler was previously wrapping as a misleading 500.
+     */
+    @org.springframework.web.bind.annotation.GetMapping("/send-email")
+    public ResponseEntity<?> sendEmailGetRejected() {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.METHOD_NOT_ALLOWED)
+                .body(Map.of("message",
+                    "HTTP method 'GET' is not supported for this endpoint. Use POST with a JSON body containing: to, subject, body, reportType, fileName, attachmentBase64."));
+    }
 }
