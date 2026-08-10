@@ -32,11 +32,11 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     List<AuditLog> findTop10ByOrderByTimestampDesc();
 
     @Query("SELECT a FROM AuditLog a WHERE " +
-           "(:search IS NULL OR LOWER(a.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           " LOWER(a.action) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           " LOWER(a.ipAddress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           " LOWER(a.result) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-           "(:outcome IS NULL OR a.result = :outcome) AND " +
+           "(cast(:search as string) IS NULL OR LOWER(a.username) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR " +
+           " LOWER(a.action) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR " +
+           " LOWER(a.ipAddress) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR " +
+           " LOWER(a.result) LIKE LOWER(CONCAT('%', cast(:search as string), '%'))) AND " +
+           "(cast(:outcome as string) IS NULL OR a.result = :outcome) AND " +
            "(cast(:startDate as timestamp) IS NULL OR a.timestamp >= :startDate) AND " +
            "(cast(:endDate as timestamp) IS NULL OR a.timestamp <= :endDate)")
     Page<AuditLog> filterLogs(@Param("search") String search,
@@ -46,11 +46,11 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
                               Pageable pageable);
 
     @Query("SELECT a FROM AuditLog a WHERE " +
-           "(:search IS NULL OR LOWER(a.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           " LOWER(a.action) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           " LOWER(a.ipAddress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           " LOWER(a.result) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-           "(:outcome IS NULL OR a.result = :outcome) AND " +
+           "(cast(:search as string) IS NULL OR LOWER(a.username) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR " +
+           " LOWER(a.action) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR " +
+           " LOWER(a.ipAddress) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR " +
+           " LOWER(a.result) LIKE LOWER(CONCAT('%', cast(:search as string), '%'))) AND " +
+           "(cast(:outcome as string) IS NULL OR a.result = :outcome) AND " +
            "(cast(:startDate as timestamp) IS NULL OR a.timestamp >= :startDate) AND " +
            "(cast(:endDate as timestamp) IS NULL OR a.timestamp <= :endDate)")
     List<AuditLog> filterLogsList(@Param("search") String search,
