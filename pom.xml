@@ -90,11 +90,7 @@
       <artifactId>spring-boot-starter-aop</artifactId>
     </dependency>
 
-    <!-- Spring Mail Support -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-mail</artifactId>
-    </dependency>
+    <!-- Spring Mail (spring-boot-starter-mail) REMOVED: email now uses Brevo REST API via RestTemplate -->
     <!-- Validation -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

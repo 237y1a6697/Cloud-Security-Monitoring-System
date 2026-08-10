@@ -1,124 +1,189 @@
 package com.prashanth.dashboard.service;
-import java.net.UnknownHostException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.MailAuthenticationException;
-import org.springframework.mail.MailSendException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.*;
+
+/**
+ * EmailService — sends transactional emails via the Brevo REST API (v3).
+ *
+ * Gmail SMTP has been removed. This service does NOT use JavaMailSender,
+ * SMTP port 587, or smtp.gmail.com. It calls:
+ *   POST https://api.brevo.com/v3/smtp/email
+ * over HTTPS using Spring's RestTemplate, which works on Render without
+ * requiring outbound TCP port 587.
+ *
+ * Required environment variables (set on Render):
+ *   BREVO_API_KEY        — Brevo API v3 key
+ *   BREVO_SENDER_EMAIL   — verified Brevo sender address
+ *   BREVO_SENDER_NAME    — display name (defaults to "SentinelCore")
+ */
 @Service
 public class EmailService {
+
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
 
-    @Autowired(required = false)
-    private JavaMailSender mailSender;
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-    @Value("${spring.mail.username:}")
-    private String fromEmail;
+    @Value("${brevo.api-key}")
+    private String brevoApiKey;
 
-    @Value("${spring.mail.host:smtp.gmail.com}")
-    private String smtpHost;
+    @Value("${brevo.sender-email}")
+    private String brevoSenderEmail;
 
-    @Value("${spring.mail.port:587}")
-    private String smtpPort;
+    @Value("${brevo.sender-name:SentinelCore}")
+    private String brevoSenderName;
+
+    private RestTemplate restTemplate = new RestTemplate();
+
+    public void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
     @PostConstruct
-public void checkMailConfig() {
-    logger.info("========== MAIL CONFIG ==========");
-    logger.info("SMTP Host: {}", smtpHost);
-    logger.info("SMTP Port: {}", smtpPort);
-    logger.info("SMTP Username: {}", fromEmail);
-    logger.info("=================================");
-}
-   
-    public void sendPlainEmail(String to, String subject, String body) {
-        if (mailSender == null) {
-            logger.error("JavaMailSender is not initialized or configured.");
-            throw new IllegalStateException("Authentication failed / SMTP settings not configured.");
+    public void checkBrevoConfig() {
+        logger.info("========== BREVO EMAIL CONFIG ==========");
+        logger.info("Brevo sender name  : {}", brevoSenderName);
+        logger.info("Brevo sender email : {}", brevoSenderEmail.isEmpty() ? "[NOT SET]" : brevoSenderEmail);
+        logger.info("Brevo API key      : {}", brevoApiKey.isEmpty() ? "[NOT SET]" : "[CONFIGURED]");
+        logger.info("========================================");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Public API
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Sends an HTML email with an optional PDF attachment via Brevo REST API.
+     *
+     * @param to             recipient email address
+     * @param subject        email subject line
+     * @param htmlContent    HTML body
+     * @param attachmentName filename for the attachment (e.g. "report.pdf")
+     * @param attachmentData raw bytes of the PDF; may be null/empty
+     */
+    public void sendHtmlEmailWithAttachment(String to,
+                                            String subject,
+                                            String htmlContent,
+                                            String attachmentName,
+                                            byte[] attachmentData) {
+        validateBrevoConfig();
+
+        // ── Build the Brevo request body ──────────────────────────────────────
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+
+        // sender
+        Map<String, String> sender = new LinkedHashMap<>();
+        sender.put("name", brevoSenderName);
+        sender.put("email", brevoSenderEmail);
+        requestBody.put("sender", sender);
+
+        // to
+        Map<String, String> recipient = new LinkedHashMap<>();
+        recipient.put("email", to);
+        requestBody.put("to", List.of(recipient));
+
+        // subject & html
+        requestBody.put("subject", subject);
+        requestBody.put("htmlContent", htmlContent);
+
+        // optional PDF attachment
+        if (attachmentData != null && attachmentData.length > 0 && attachmentName != null) {
+            String b64 = Base64.getEncoder().encodeToString(attachmentData);
+            Map<String, String> attachment = new LinkedHashMap<>();
+            attachment.put("content", b64);
+            attachment.put("name", attachmentName);
+            requestBody.put("attachment", List.of(attachment));
+            logger.info("Brevo request: attaching '{}' ({} bytes)", attachmentName, attachmentData.length);
         }
+
+        // ── Build HTTP headers ────────────────────────────────────────────────
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", brevoApiKey);   // Brevo authentication header
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+        // ── Call Brevo ────────────────────────────────────────────────────────
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            if (fromEmail != null && !fromEmail.trim().isEmpty()) {
-                message.setFrom(fromEmail);
+            ResponseEntity<String> response =
+                    restTemplate.exchange(BREVO_API_URL, HttpMethod.POST, request, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.info("Brevo: email delivered successfully to '{}'", to);
             } else {
-                message.setFrom("secops-alerts@sentinelcore.com");
+                // Shouldn't happen (RestTemplate throws on 4xx/5xx), but guard anyway
+                logger.error("Brevo returned unexpected status {} for recipient '{}'",
+                        response.getStatusCode(), to);
+                throw new RuntimeException("BREVO_UNEXPECTED_STATUS: " + response.getStatusCode());
             }
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
-            logger.info("Plain text email successfully sent to {}", to);
-        } catch (MailAuthenticationException e) {
-            logger.error("SMTP Authentication Failed: credentials rejected when sending to {}.", to);
-            throw new RuntimeException("SMTP_AUTHENTICATION_FAILED: Incorrect SMTP credentials. If using Gmail, verify you configured a Google App Password in SMTP_PASSWORD.", e);
-        } catch (MailSendException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof UnknownHostException) {
-                logger.error("SMTP DNS resolution failed for host {} when sending to {}.", smtpHost, to);
-                throw new RuntimeException("SMTP_DNS_RESOLUTION_FAILED: Unable to resolve host: " + smtpHost, e);
-            }
-            logger.error("SMTP Transport Connection / Delivery Failed when emailing {}.", to);
-            throw new RuntimeException("SMTP_CONNECTION_FAILED: " + e.getMessage(), e);
+
+        } catch (HttpClientErrorException e) {
+            // 4xx — bad request, bad API key, unverified sender, etc.
+            logger.error("Brevo API client error ({}): {} — recipient='{}'",
+                    e.getStatusCode(), e.getStatusText(), to);
+            throw new RuntimeException("BREVO_CLIENT_ERROR: " + e.getStatusCode()
+                    + " — " + sanitisedBrevoError(e.getResponseBodyAsString()), e);
+
+        } catch (HttpServerErrorException e) {
+            // 5xx — Brevo server error
+            logger.error("Brevo API server error ({}): {} — recipient='{}'",
+                    e.getStatusCode(), e.getStatusText(), to);
+            throw new RuntimeException("BREVO_SERVER_ERROR: " + e.getStatusCode()
+                    + " — " + sanitisedBrevoError(e.getResponseBodyAsString()), e);
+
+        } catch (ResourceAccessException e) {
+            // Network/timeout failure
+            logger.error("Network error reaching Brevo API for recipient '{}': {}", to, e.getMessage());
+            throw new RuntimeException("BREVO_NETWORK_ERROR: Unable to reach Brevo API. " + e.getMessage(), e);
+
         } catch (Exception e) {
-            logger.error("Failed to send plain text email to {}.", to);
-            throw new RuntimeException("SMTP_DELIVERY_FAILED: " + e.getMessage(), e);
+            logger.error("Unexpected error during Brevo email dispatch to '{}'", to, e);
+            throw new RuntimeException("BREVO_DISPATCH_FAILED: " + e.getMessage(), e);
         }
     }
 
-    public void sendHtmlEmailWithAttachment(String to, String subject, String htmlContent, String attachmentName, byte[] attachmentData) {
-        if (mailSender == null) {
-            logger.error("JavaMailSender is not initialized or configured.");
-            throw new IllegalStateException("SMTP settings not configured / JavaMailSender bean missing.");
+    /**
+     * Sends a plain-text email by wrapping it as minimal HTML.
+     * Kept for API compatibility; internally uses the Brevo REST path.
+     */
+    public void sendPlainEmail(String to, String subject, String body) {
+        String htmlContent = "<p>" + (body == null ? "" : body.replace("\n", "<br/>")) + "</p>";
+        sendHtmlEmailWithAttachment(to, subject, htmlContent, null, null);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void validateBrevoConfig() {
+        if (brevoApiKey == null || brevoApiKey.trim().isEmpty()) {
+            throw new IllegalStateException("BREVO_NOT_CONFIGURED: BREVO_API_KEY environment variable is missing.");
         }
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            // Enable multipart support for attachments
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            if (fromEmail != null && !fromEmail.trim().isEmpty()) {
-                helper.setFrom(fromEmail);
-            } else {
-                helper.setFrom("secops-alerts@sentinelcore.com");
-            }
-            helper.setTo(to);
-            helper.setSubject(subject);
-            // Sanitization: Ensure no raw injection vectors
-            helper.setText(htmlContent, true); // true indicates standard HTML formatting
-            
-            if (attachmentData != null && attachmentData.length > 0 && attachmentName != null) {
-                helper.addAttachment(attachmentName, new ByteArrayResource(attachmentData));
-                logger.info("Attached file: {} ({} bytes)", attachmentName, attachmentData.length);
-            }
-            
-            mailSender.send(message);
-            logger.info("HTML email successfully sent to {}", to);
-        } catch (MailAuthenticationException e) {
-            logger.error("SMTP Authentication Failed: credentials rejected when sending to {}.", to);
-            throw new RuntimeException("SMTP_AUTHENTICATION_FAILED: Incorrect SMTP credentials. If using Gmail, verify you configured a Google App Password in SMTP_PASSWORD.", e);
-        } catch (MailSendException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof UnknownHostException) {
-                logger.error("SMTP DNS resolution failed for host {} when sending to {}.", smtpHost, to);
-                throw new RuntimeException("SMTP_DNS_RESOLUTION_FAILED: Unable to resolve host: " + smtpHost, e);
-            }
-            logger.error("SMTP Transport Connection / Delivery Failed when emailing {}.", to);
-            throw new RuntimeException("SMTP_CONNECTION_FAILED: " + e.getMessage(), e);
-        } catch (MessagingException e) {
-            logger.error("Failed to compile or deliver HTML email to {}.", to);
-            throw new RuntimeException("SMTP_DELIVERY_FAILED: " + e.getMessage(), e);
-        } catch (Exception e) {
-            logger.error("Unexpected error during email dispatch to {}.", to);
-            throw new RuntimeException("SMTP_DELIVERY_FAILED: " + e.getMessage(), e);
+        if (brevoSenderEmail == null || brevoSenderEmail.trim().isEmpty()) {
+            throw new IllegalStateException("BREVO_NOT_CONFIGURED: BREVO_SENDER_EMAIL environment variable is missing.");
         }
+    }
+
+    /**
+     * Strips any sensitive tokens from a Brevo error body before surfacing it.
+     * Only pass the Brevo JSON error body here, never internal credentials.
+     */
+    private String sanitisedBrevoError(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "(no error detail)";
+        }
+        // Brevo error bodies are JSON like {"code":"unauthorized","message":"..."}
+        // Limit to 300 chars to avoid leaking excessive detail
+        return responseBody.length() > 300 ? responseBody.substring(0, 300) + "…" : responseBody;
     }
 }
