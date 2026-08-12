@@ -61,6 +61,30 @@ graph TD
 
 ---
 
+## 📂 Project Structure
+
+The project has been refactored into a decoupled frontend/backend monorepo layout:
+
+```text
+SentinelCore-SecureOps/
+├── backend/            # Spring Boot 3 Java backend
+│   ├── src/            # Java backend source code (main & test)
+│   ├── pom.xml         # Maven dependencies and build definition
+│   ├── Dockerfile      # Backend container build configuration
+│   ├── mvnw / mvnw.cmd # Maven wrappers for local running
+│   └── .mvn/           # Maven wrapper configurations
+├── frontend/           # React Single Page Application frontend
+│   ├── src/            # React components, routing, services
+│   ├── public/         # Static assets
+│   ├── package.json    # NodeJS dependencies and startup scripts
+│   └── vite.config.js  # Vite build & proxy orchestrations
+├── README.md           # This document
+├── .gitignore          # Root-level gitexclusions covering full project
+└── docker-compose.yml  # Orchestrate backend and database services
+```
+
+---
+
 ## 💻 Tech Stack
 
 ### Backend
@@ -169,12 +193,15 @@ Ensure that local database server dependencies are running.
 ### Starting Backend Server (8081)
 The backend uses Maven for packaging and dependency retrieval, running on port `8081`.
 
-1.  Navigate to root project directory.
+1.  Navigate to the `backend/` subdirectory:
+    ```bash
+    cd backend
+    ```
 2.  Run the application locally using Maven:
     ```bash
-    mvn spring-boot:run
+    ./mvnw spring-boot:run
     ```
-    *Or use the pre-packaged run executable:*
+    *Or run from the root directory using the wrapper script:*
     ```bash
     run-server.bat
     ```

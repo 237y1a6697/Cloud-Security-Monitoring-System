@@ -11,4 +11,5 @@ echo   $env:SMTP_PORT = '587'
 echo   $env:SMTP_USERNAME = '<YOUR_EMAIL>'
 echo   $env:SMTP_PASSWORD = '<YOUR_APP_PASSWORD>'
 echo Launching Spring Boot...
+cd backend
 call mvnw.cmd spring-boot:run

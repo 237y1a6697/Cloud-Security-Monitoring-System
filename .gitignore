@@ -1,35 +1,42 @@
-HELP.md
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# ── Backend (Maven / Spring Boot) ────────────────────────────────────────────
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+!backend/src/main/**/target/
+!backend/src/test/**/target/
+!backend/src/main/**/build/
+!backend/src/test/**/build/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# ── Frontend (Node / Vite) ────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/build/
+frontend/.env.local
+frontend/.env.*.local
 
-### IntelliJ IDEA ###
-.idea
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+.idea/
 *.iws
 *.iml
 *.ipr
+.vscode/
+.project
+.classpath
+.factorypath
+.settings/
+.springBeans
+.sts4-cache
+.apt_generated
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
+# ── OS artifacts ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+nbproject/private/
+nbbuild/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-
-### Maven ###
-target/

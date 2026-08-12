@@ -11,22 +11,12 @@
 # Maven build output (will be created fresh inside Docker)
 target/
 
-# Frontend (not needed for Spring Boot jar build)
-frontend/node_modules
-frontend/dist
-frontend/.cache
-frontend/build
-
 # OS artifacts
 .DS_Store
 Thumbs.db
 
 # Logs
 *.log
-
-# Render / local scripts
-run-server.bat
-test-powershell-smtp.ps1
 
 # Docker itself
 Dockerfile
