@@ -32,8 +32,20 @@ frontend/.env.*.local
 .DS_Store
 Thumbs.db
 
-# ── Logs ─────────────────────────────────────────────────────────────────────
+# ── Logs & Debug Files ────────────────────────────────────────────────────────
 *.log
+hs_err_pid*
+replay_pid*
+compile-out.txt
+build_utf8.log
+test_utf8.log
+
+# ── Local Environment Overrides ────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+**/local.properties
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 nbproject/private/
