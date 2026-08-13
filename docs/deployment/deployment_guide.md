@@ -23,7 +23,7 @@ A pre-configured `docker-compose.yml` file is provided in the repository root to
    ```
 3. Verify containers:
    - Database service container: `sentinelcore-db` (on port `5432`).
-   - Spring Boot backend container: `sentinelcore-backend` (on host port `8081`, mapping to container port `8080`).
+   - Spring Boot backend container: `sentinelcore-backend` (on host port `8081`, mapping to container port `8081`).
 
 ---
 

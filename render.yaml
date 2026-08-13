@@ -5,7 +5,8 @@ services:
     plan: free
     branch: main
     rootDir: backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
     healthCheckPath: /health
     envVars:
       - key: SPRING_DATASOURCE_URL

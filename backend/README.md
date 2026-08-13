@@ -35,7 +35,7 @@ The backend engine of the SentinelCore-SecureOps platform is built using **Sprin
    ./mvnw spring-boot:run
    ```
    *For Windows, you can also use `mvnw.cmd`.*
-4. The server runs on port **`8080`** by default (and maps to port `8081` in local proxy setups).
+4. The server runs on port **`8081`** by default.
 
 ---
 
