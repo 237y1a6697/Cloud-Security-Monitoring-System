@@ -7,7 +7,7 @@ import axiosInstance from '../api/axios.js';
  *  - resolves the correct backend base URL (Vite proxy in dev, Render URL in production)
  *  - sends session cookies (withCredentials: true)
  *
- * The XAI_API_KEY is handled entirely on the backend (Render env var).
+ * The MOONSHOT_API_KEY is handled entirely on the backend (Render env var).
  * It is NEVER sent to or from the browser.
  */
 const aiAssistantService = {

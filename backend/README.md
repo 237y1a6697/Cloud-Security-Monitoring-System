@@ -13,7 +13,7 @@ The backend engine of the SentinelCore-SecureOps platform is built using **Sprin
 5. **Aspect-Oriented Audit System (Spring AOP)**: Passive logger capturing security operations via `@Auditable` aspects and dynamically truncating caller metadata.
 6. **PDF Reports Exporter (OpenPDF)**: Automatically formats system scores, vulnerability indices, and logs into a PDF download layout.
 7. **Brevo Email API Integration**: Sends operational summaries and threat notices to administrators using the Brevo HTTPS REST API.
-8. **xAI Grok AI Assistant**: Routes client queries through a secure backend proxy to the Grok API (`grok-4.5`).
+8. **Kimi AI Assistant**: Routes client queries through a secure Spring AI backend proxy to Kimi/Moonshot.
 9. **Report Scheduling Thread**: Checks active cron tasks via `@Scheduled` and auto-sends reports.
 
 ---

@@ -2,7 +2,7 @@ package com.prashanth.dashboard.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prashanth.dashboard.dto.AIChatRequest;
-import com.prashanth.dashboard.service.GrokService;
+import com.prashanth.dashboard.service.AiChatService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,8 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Slice tests for AIController.
  *
- * GrokService is mocked — no real xAI HTTP calls are made.
- * Real Grok API key is never required.
+ * AiChatService is mocked — no real Kimi API calls are made.
+ * A real Kimi API key is never required.
  */
 @WebMvcTest(AIController.class)
 class AIControllerTest {
@@ -33,33 +33,33 @@ class AIControllerTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper objectMapper;
 
-    @MockBean GrokService grokService;
+    @MockBean AiChatService aiChatService;
 
     // ── /api/ai/health ────────────────────────────────────────────────────────
 
     @Test
     @WithMockUser
     void health_whenConfigured_returnsUp() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.getModel()).thenReturn("grok-4.5");
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.getModel()).thenReturn("kimi-k2.6");
 
         mvc.perform(get("/api/ai/health").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("UP"))
-            .andExpect(jsonPath("$.provider").value("xAI"))
-            .andExpect(jsonPath("$.model").value("grok-4.5"))
+            .andExpect(jsonPath("$.status").value("READY"))
+            .andExpect(jsonPath("$.provider").value("Kimi"))
+            .andExpect(jsonPath("$.model").value("kimi-k2.6"))
             .andExpect(jsonPath("$.configured").value(true));
     }
 
     @Test
     @WithMockUser
     void health_whenNotConfigured_returnsDown() throws Exception {
-        when(grokService.isConfigured()).thenReturn(false);
-        when(grokService.getModel()).thenReturn("grok-4.5");
+        when(aiChatService.isConfigured()).thenReturn(false);
+        when(aiChatService.getModel()).thenReturn("kimi-k2.6");
 
         mvc.perform(get("/api/ai/health").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("DOWN"))
+            .andExpect(jsonPath("$.status").value("NOT_CONFIGURED"))
             .andExpect(jsonPath("$.configured").value(false));
     }
 
@@ -74,9 +74,9 @@ class AIControllerTest {
 
     @Test
     @WithMockUser
-    void chat_successfulGrokResponse_returnsTextAndTimestamp() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString(), anyString()))
+    void chat_successfulKimiResponse_returnsTextAndTimestamp() throws Exception {
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
             .thenReturn("Yes, SentinelCore supports CSV export from the Reports module.");
 
         AIChatRequest req = new AIChatRequest("Can I export CSV?", List.of(), "Reports", "/reports");
@@ -92,9 +92,9 @@ class AIControllerTest {
 
     @Test
     @WithMockUser
-    void chat_activeModuleIsSentToGrokService() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), eq("Incidents"), anyString()))
+    void chat_activeModuleIsSentToAiChatService() throws Exception {
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), eq("Incidents"), anyString()))
             .thenReturn("Incidents module answer.");
 
         AIChatRequest req = new AIChatRequest("test question", null, "Incidents", "/incidents");
@@ -106,7 +106,7 @@ class AIControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.text").value("Incidents module answer."));
 
-        verify(grokService).chat(anyString(), any(), eq("Incidents"), anyString());
+        verify(aiChatService).chat(anyString(), any(), eq("Incidents"), anyString());
     }
 
     @Test
@@ -125,7 +125,7 @@ class AIControllerTest {
     @Test
     @WithMockUser
     void chat_notConfigured_returnsFallbackWithNote() throws Exception {
-        when(grokService.isConfigured()).thenReturn(false);
+        when(aiChatService.isConfigured()).thenReturn(false);
 
         AIChatRequest req = new AIChatRequest("Who are you?", null, "Dashboard", "/");
 
@@ -139,10 +139,10 @@ class AIControllerTest {
 
     @Test
     @WithMockUser
-    void chat_grok401_returnsUserFriendlyMessage() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString(), anyString()))
-            .thenThrow(new GrokService.GrokException(401, "Unauthorized"));
+    void chat_kimi401_returnsUserFriendlyMessage() throws Exception {
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
+            .thenThrow(new AiChatService.AiProviderException(401, "Unauthorized"));
 
         AIChatRequest req = new AIChatRequest("test", null, "Dashboard", "/");
 
@@ -156,10 +156,10 @@ class AIControllerTest {
 
     @Test
     @WithMockUser
-    void chat_grok429_returnsRateLimitMessage() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString(), anyString()))
-            .thenThrow(new GrokService.GrokException(429, "Too Many Requests"));
+    void chat_kimi429_returnsRateLimitMessage() throws Exception {
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
+            .thenThrow(new AiChatService.AiProviderException(429, "Too Many Requests"));
 
         AIChatRequest req = new AIChatRequest("test", null, "Dashboard", "/");
 
@@ -173,10 +173,10 @@ class AIControllerTest {
 
     @Test
     @WithMockUser
-    void chat_grok500_returnsServiceErrorMessage() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString(), anyString()))
-            .thenThrow(new GrokService.GrokException(500, "Internal Server Error"));
+    void chat_kimi500_returnsServiceErrorMessage() throws Exception {
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
+            .thenThrow(new AiChatService.AiProviderException(500, "Internal Server Error"));
 
         AIChatRequest req = new AIChatRequest("test", null, "Dashboard", "/");
 
@@ -191,9 +191,9 @@ class AIControllerTest {
     @Test
     @WithMockUser
     void chat_timeout_returnsTimeoutMessage() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString(), anyString()))
-            .thenThrow(new GrokService.GrokException(408, "Request Timeout"));
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
+            .thenThrow(new AiChatService.AiProviderException(408, "Request Timeout"));
 
         AIChatRequest req = new AIChatRequest("test", null, "Dashboard", "/");
 
@@ -208,9 +208,9 @@ class AIControllerTest {
     @Test
     @WithMockUser
     void chat_responseFormatMatchesFrontendContract() throws Exception {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString(), anyString()))
-            .thenReturn("Grok answer.");
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
+            .thenReturn("Kimi answer.");
 
         AIChatRequest req = new AIChatRequest("Question?", null, "Dashboard", "/");
 

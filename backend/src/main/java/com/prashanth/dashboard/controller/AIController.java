@@ -3,7 +3,7 @@ package com.prashanth.dashboard.controller;
 import com.prashanth.dashboard.aop.Auditable;
 import com.prashanth.dashboard.dto.AIChatRequest;
 import com.prashanth.dashboard.dto.AIChatResponse;
-import com.prashanth.dashboard.service.GrokService;
+import com.prashanth.dashboard.service.AiChatService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +16,10 @@ import java.util.Map;
 /**
  * AI Assistant REST controller.
  *
- * POST /api/ai/chat  — chat turn; delegates to GrokService → xAI Responses API
+ * POST /api/ai/chat  — chat turn; delegates to AiChatService → Kimi/Moonshot.
  * GET  /api/ai/health — provider health/configuration check
  *
- * The XAI_API_KEY is NEVER included in any response or log line.
+ * The MOONSHOT_API_KEY is NEVER included in any response or log line.
  */
 @RestController
 @RequestMapping("/api/ai")
@@ -27,10 +27,10 @@ public class AIController {
 
     private static final Logger log = LoggerFactory.getLogger(AIController.class);
 
-    private final GrokService grokService;
+    private final AiChatService aiChatService;
 
-    public AIController(GrokService grokService) {
-        this.grokService = grokService;
+    public AIController(AiChatService aiChatService) {
+        this.aiChatService = aiChatService;
     }
 
     // ── POST /api/ai/chat ─────────────────────────────────────────────────────
@@ -49,25 +49,25 @@ public class AIController {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
 
         // ── Missing API key: return friendly degraded response ────────────────
-        if (!grokService.isConfigured()) {
-            log.warn("XAI_API_KEY is not set — AI Assistant is running with built-in fallback responses.");
+        if (!aiChatService.isConfigured()) {
+            log.warn("MOONSHOT_API_KEY is not set; AI Assistant is running with built-in fallback responses.");
             String fallback = buildFallbackResponse(userMessage, currentRoute, currentPage);
             return ResponseEntity.ok(new AIChatResponse(
-                fallback + "\n\n*(AI provider not configured — set XAI_API_KEY on Render to enable Grok)*",
+                fallback + "\n\n*(AI provider not configured — set MOONSHOT_API_KEY on Render to enable Kimi)*",
                 timestamp
             ));
         }
 
-        // ── Call Grok via GrokService ─────────────────────────────────────────
+        // ── Call Kimi via the Spring AI-backed service ─────────────────────────
         try {
-            String reply = grokService.chat(userMessage, request.conversation(), currentPage, currentRoute);
+            String reply = aiChatService.chat(userMessage, request.conversation(), currentPage, currentRoute);
             return ResponseEntity.ok(new AIChatResponse(reply, timestamp));
 
-        } catch (GrokService.GrokException e) {
+        } catch (AiChatService.AiProviderException e) {
             int status = e.getHttpStatus();
-            log.error("Grok API error (HTTP {}): {}", status, e.getMessage());
+            log.error("Kimi API error (HTTP {}): {}", status, e.getMessage());
 
-            // Map Grok errors to user-friendly messages; never surface the API key or raw body
+            // Map Kimi errors to user-friendly messages; never surface secrets or raw bodies.
             String userFacingMessage = switch (status) {
                 case 0    -> "AI provider is not configured. Please contact your system administrator.";
                 case 401  -> "AI provider authentication failed. Please contact your system administrator.";
@@ -95,11 +95,11 @@ public class AIController {
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> health() {
-        boolean configured = grokService.isConfigured();
+        boolean configured = aiChatService.isConfigured();
         return ResponseEntity.ok(Map.of(
-            "status",     configured ? "UP" : "DOWN",
-            "provider",   "xAI",
-            "model",      grokService.getModel(),
+            "status",     configured ? "READY" : "NOT_CONFIGURED",
+            "provider",   "Kimi",
+            "model",      aiChatService.getModel(),
             "configured", configured
         ));
     }
