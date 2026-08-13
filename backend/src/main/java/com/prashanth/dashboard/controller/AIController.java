@@ -83,7 +83,7 @@ public class AIController {
             return ResponseEntity.ok(new AIChatResponse(userFacingMessage, timestamp));
 
         } catch (Exception e) {
-            log.error("Unexpected error in AI chat: {}", e.getMessage(), e);
+            log.error("Unexpected AI chat failure ({}).", e.getClass().getSimpleName(), e);
             return ResponseEntity.ok(new AIChatResponse(
                 "I'm having trouble connecting to the SentinelCore AI brain right now. Please try again.",
                 timestamp

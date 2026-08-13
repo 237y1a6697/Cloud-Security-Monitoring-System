@@ -14,12 +14,16 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Spring AI-backed Kimi/Moonshot implementation for the SentinelCore assistant. */
 @Service
 public class AiChatService {
 
     private static final int MAX_HISTORY_MESSAGES = 10;
+    private static final Pattern HTTP_STATUS_PATTERN =
+            Pattern.compile("(?<!\\d)(400|401|403|404|408|429|5\\d{2})(?!\\d)");
     private final ChatClient chatClient;
     private final String apiKey;
     private final String model;
@@ -88,9 +92,21 @@ public class AiChatService {
             if (current instanceof ResourceAccessException) {
                 return new AiProviderException(408, "Kimi request timed out or could not be reached.");
             }
+            Integer status = findHttpStatus(current.getMessage());
+            if (status != null) {
+                return new AiProviderException(status, "Kimi request failed with HTTP " + status + ".");
+            }
             current = current.getCause();
         }
         return new AiProviderException(503, "Kimi provider request failed.");
+    }
+
+    private Integer findHttpStatus(String message) {
+        if (message == null) {
+            return null;
+        }
+        Matcher matcher = HTTP_STATUS_PATTERN.matcher(message);
+        return matcher.find() ? Integer.valueOf(matcher.group(1)) : null;
     }
 
     private String buildSystemPrompt(String currentPage, String currentRoute) {
