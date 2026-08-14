@@ -38,8 +38,8 @@ services:
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-SentinelCore}
-      MOONSHOT_API_KEY: ${MOONSHOT_API_KEY:-}
-      KIMI_MODEL: ${KIMI_MODEL:-kimi-k2.6}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+      GROK_MODEL: ${GROK_MODEL:-grok-4.5}
 
 volumes:
   pgdata:

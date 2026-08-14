@@ -1,6 +1,7 @@
 package com.prashanth.dashboard.service;
 
 import com.prashanth.dashboard.dto.ChatMessageDTO;
+import com.prashanth.dashboard.repository.VulnerabilityRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -17,7 +18,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Spring AI-backed Kimi/Moonshot implementation for the SentinelCore assistant. */
+/** Spring AI-backed xAI Grok implementation for the SentinelCore assistant. */
 @Service
 public class AiChatService {
 
@@ -27,13 +28,16 @@ public class AiChatService {
     private final ChatClient chatClient;
     private final String apiKey;
     private final String model;
+    private final VulnerabilityRepository vulnerabilityRepository;
 
     public AiChatService(ChatClient.Builder chatClientBuilder,
                          @Value("${spring.ai.openai.api-key:}") String apiKey,
-                         @Value("${spring.ai.openai.chat.options.model:kimi-k2.6}") String model) {
+                         @Value("${spring.ai.openai.chat.options.model:grok-4.5}") String model,
+                         VulnerabilityRepository vulnerabilityRepository) {
         this.chatClient = chatClientBuilder.build();
         this.apiKey = apiKey;
         this.model = model;
+        this.vulnerabilityRepository = vulnerabilityRepository;
     }
 
     public boolean isConfigured() {
@@ -47,18 +51,18 @@ public class AiChatService {
     public String chat(String userMessage, List<ChatMessageDTO> history,
                        String currentPage, String currentRoute) throws AiProviderException {
         if (!isConfigured()) {
-            throw new AiProviderException(0, "MOONSHOT_API_KEY is not configured on the server.");
+            throw new AiProviderException(0, "Grok API key is not configured on the server.");
         }
 
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(buildSystemPrompt(currentPage, currentRoute)));
+        messages.add(new SystemMessage(buildSystemPrompt(currentPage, currentRoute, getVulnerabilityCount())));
         appendHistory(messages, history);
         messages.add(new UserMessage(userMessage));
 
         try {
             String response = chatClient.prompt(new Prompt(messages)).call().content();
             if (response == null || response.isBlank()) {
-                throw new AiProviderException(502, "Kimi returned an empty response.");
+                throw new AiProviderException(502, "Grok returned an empty response.");
             }
             return response;
         } catch (AiProviderException e) {
@@ -87,18 +91,18 @@ public class AiChatService {
         Throwable current = exception;
         while (current != null) {
             if (current instanceof RestClientResponseException responseException) {
-                return new AiProviderException(responseException.getStatusCode().value(), "Kimi request failed.");
+                return new AiProviderException(responseException.getStatusCode().value(), "Grok request failed.");
             }
             if (current instanceof ResourceAccessException) {
-                return new AiProviderException(408, "Kimi request timed out or could not be reached.");
+                return new AiProviderException(408, "Grok request timed out or could not be reached.");
             }
             Integer status = findHttpStatus(current.getMessage());
             if (status != null) {
-                return new AiProviderException(status, "Kimi request failed with HTTP " + status + ".");
+                return new AiProviderException(status, "Grok request failed with HTTP " + status + ".");
             }
             current = current.getCause();
         }
-        return new AiProviderException(503, "Kimi provider request failed.");
+        return new AiProviderException(503, "Grok provider request failed.");
     }
 
     private Integer findHttpStatus(String message) {
@@ -109,7 +113,15 @@ public class AiChatService {
         return matcher.find() ? Integer.valueOf(matcher.group(1)) : null;
     }
 
-    private String buildSystemPrompt(String currentPage, String currentRoute) {
+    private Long getVulnerabilityCount() {
+        try {
+            return vulnerabilityRepository.count();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private String buildSystemPrompt(String currentPage, String currentRoute, Long vulnerabilityCount) {
         return "You are the SentinelCore SecureOps AI Assistant.\n\n" +
                 "You help authenticated users understand and operate the SentinelCore SecureOps security platform.\n\n" +
                 "Current module: " + (currentPage != null ? currentPage : "Dashboard") + "\n" +
@@ -122,6 +134,9 @@ public class AiChatService {
                 "do not invent features. For navigation, explain where to find the feature. Explain existing report generation, " +
                 "email and scheduling, and RBAC when relevant. The RBAC roles are ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_SOC_MANAGER, " +
                 "ROLE_SECURITY_ANALYST, ROLE_INCIDENT_RESPONDER, ROLE_INFRA_ENGINEER, ROLE_DEVSECOPS, ROLE_AUDITOR, ROLE_VIEWER.\n\n" +
+                (vulnerabilityCount != null
+                        ? "Live dashboard context: there are currently " + vulnerabilityCount + " recorded vulnerability entries. "
+                        : "Live dashboard context is unavailable for this request; do not invent counts or operational data. ") +
                 "Do not expose API keys, passwords, JWT secrets, database credentials, environment variables, or other secrets. " +
                 "Keep answers concise unless the user asks for detailed instructions.";
     }

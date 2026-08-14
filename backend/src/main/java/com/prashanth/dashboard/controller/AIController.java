@@ -16,10 +16,10 @@ import java.util.Map;
 /**
  * AI Assistant REST controller.
  *
- * POST /api/ai/chat  — chat turn; delegates to AiChatService → Kimi/Moonshot.
+ * POST /api/ai/chat  — chat turn; delegates to AiChatService → xAI Grok.
  * GET  /api/ai/health — provider health/configuration check
  *
- * The MOONSHOT_API_KEY is NEVER included in any response or log line.
+ * The GROK_API_KEY is NEVER included in any response or log line.
  */
 @RestController
 @RequestMapping("/api/ai")
@@ -47,48 +47,56 @@ public class AIController {
         }
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+        long startedAt = System.nanoTime();
 
         // ── Missing API key: return friendly degraded response ────────────────
         if (!aiChatService.isConfigured()) {
-            log.warn("MOONSHOT_API_KEY is not set; AI Assistant is running with built-in fallback responses.");
+            log.warn("Grok API key is not set; AI Assistant is running with built-in fallback responses.");
             String fallback = buildFallbackResponse(userMessage, currentRoute, currentPage);
             return ResponseEntity.ok(new AIChatResponse(
-                fallback + "\n\n*(AI provider not configured — set MOONSHOT_API_KEY on Render to enable Kimi)*",
+                fallback + "\n\n*(AI provider not configured — set GROK_API_KEY on Render to enable Grok)*",
                 timestamp
             ));
         }
 
-        // ── Call Kimi via the Spring AI-backed service ─────────────────────────
+        // ── Call Grok via the Spring AI-backed service ─────────────────────────
+        log.info("AI chat request started (model={})", aiChatService.getModel());
         try {
             String reply = aiChatService.chat(userMessage, request.conversation(), currentPage, currentRoute);
+            log.info("AI chat request succeeded (model={}, durationMs={})", aiChatService.getModel(), elapsedMillis(startedAt));
             return ResponseEntity.ok(new AIChatResponse(reply, timestamp));
 
         } catch (AiChatService.AiProviderException e) {
             int status = e.getHttpStatus();
-            log.error("Kimi API error (HTTP {}): {}", status, e.getMessage());
+            log.warn("AI chat request failed (model={}, status={}, durationMs={})",
+                    aiChatService.getModel(), status, elapsedMillis(startedAt));
 
-            // Map Kimi errors to user-friendly messages; never surface secrets or raw bodies.
+            // Map provider errors to user-friendly messages; never surface secrets or raw bodies.
             String userFacingMessage = switch (status) {
-                case 0    -> "AI provider is not configured. Please contact your system administrator.";
-                case 401  -> "AI provider authentication failed. Please contact your system administrator.";
-                case 403  -> "AI provider access denied. Please contact your system administrator.";
-                case 404  -> "AI provider endpoint not found. Please contact your system administrator.";
-                case 408  -> "The AI provider took too long to respond. Please try again in a moment.";
-                case 429  -> "AI provider rate limit reached. Please wait a moment and try again.";
-                case 500  -> "The AI provider is experiencing internal issues. Please try again shortly.";
-                case 502,
-                     503  -> "The AI provider is temporarily unavailable. Please try again shortly.";
-                default   -> "I'm unable to reach the AI provider right now. Please try again.";
+                case 0          -> "AI provider is not configured. Please contact your system administrator.";
+                case 400        -> "AI request was rejected. Please verify the model/request configuration.";
+                case 401, 403   -> "AI authentication failed. Please verify the Grok API key.";
+                case 404        -> "AI model or endpoint was not found. Please verify GROK_MODEL and provider configuration.";
+                case 408        -> "Unable to reach the AI provider. Please try again.";
+                case 429        -> "AI rate limit reached. Please wait a moment and try again.";
+                case 500, 502,
+                     503, 504   -> "Grok is temporarily unavailable. Please try again shortly.";
+                default         -> "Unable to reach the AI provider. Please try again.";
             };
             return ResponseEntity.ok(new AIChatResponse(userFacingMessage, timestamp));
 
         } catch (Exception e) {
-            log.error("Unexpected AI chat failure ({}).", e.getClass().getSimpleName(), e);
+            log.error("Unexpected AI chat failure (type={}, durationMs={}).",
+                    e.getClass().getSimpleName(), elapsedMillis(startedAt));
             return ResponseEntity.ok(new AIChatResponse(
                 "I'm having trouble connecting to the SentinelCore AI brain right now. Please try again.",
                 timestamp
             ));
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 
     // ── GET /api/ai/health ────────────────────────────────────────────────────
@@ -98,7 +106,7 @@ public class AIController {
         boolean configured = aiChatService.isConfigured();
         return ResponseEntity.ok(Map.of(
             "status",     configured ? "READY" : "NOT_CONFIGURED",
-            "provider",   "Kimi",
+            "provider",   "Grok",
             "model",      aiChatService.getModel(),
             "configured", configured
         ));

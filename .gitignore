@@ -46,6 +46,8 @@ test_utf8.log
 .env.*.local
 *.env
 **/local.properties
+**/application-local.properties
+**/secrets/
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 nbproject/private/

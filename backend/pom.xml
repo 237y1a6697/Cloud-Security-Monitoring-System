@@ -42,7 +42,7 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
-    <!-- OpenAI-compatible Spring AI ChatClient used with Kimi/Moonshot. -->
+    <!-- OpenAI-compatible Spring AI ChatClient used with xAI Grok. -->
     <dependency>
       <groupId>org.springframework.ai</groupId>
       <artifactId>spring-ai-starter-model-openai</artifactId>
