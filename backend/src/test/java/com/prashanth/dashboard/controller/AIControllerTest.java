@@ -2,6 +2,7 @@ package com.prashanth.dashboard.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prashanth.dashboard.dto.AIChatRequest;
+import com.prashanth.dashboard.dto.AssistantResult;
 import com.prashanth.dashboard.service.SentinelCoreAssistantService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ class AIControllerTest {
     @WithMockUser
     void chat_successfulResponse_returnsTextAndTimestamp() throws Exception {
         when(assistantService.chat(anyString(), any(), anyString(), anyString()))
-            .thenReturn("Internal response about CSV export.");
+            .thenReturn(new AssistantResult("Internal response about CSV export.", List.of("Show security overview")));
 
         AIChatRequest req = new AIChatRequest("Can I export CSV?", List.of(), "Reports", "/reports");
 
@@ -68,14 +69,15 @@ class AIControllerTest {
                 .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.text").value("Internal response about CSV export."))
-            .andExpect(jsonPath("$.timestamp").exists());
+            .andExpect(jsonPath("$.timestamp").exists())
+            .andExpect(jsonPath("$.suggestions[0]").value("Show security overview"));
     }
 
     @Test
     @WithMockUser
     void chat_activeModuleIsSentToAssistantService() throws Exception {
         when(assistantService.chat(anyString(), any(), eq("Incidents"), eq("/incidents")))
-            .thenReturn("Incidents response.");
+            .thenReturn(new AssistantResult("Incidents response.", List.of()));
 
         AIChatRequest req = new AIChatRequest("How to create an incident?", null, "Incidents", "/incidents");
 
@@ -122,11 +124,11 @@ class AIControllerTest {
     @WithMockUser
     void chat_responseFormatMatchesFrontendContract() throws Exception {
         when(assistantService.chat(anyString(), any(), anyString(), anyString()))
-            .thenReturn("Mock answer text.");
+            .thenReturn(new AssistantResult("Mock answer text.", List.of("Option A")));
 
         AIChatRequest req = new AIChatRequest("Question?", null, "Dashboard", "/");
 
-        // Frontend expects ONLY text and timestamp in the JSON response
+        // Frontend expects text, timestamp, and optional suggestions in the JSON response
         mvc.perform(post("/api/ai/chat")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -134,6 +136,7 @@ class AIControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.text").isString())
             .andExpect(jsonPath("$.timestamp").isString())
+            .andExpect(jsonPath("$.suggestions").exists())
             // No API key or internal secrets leaked
             .andExpect(jsonPath("$.apiKey").doesNotExist())
             .andExpect(jsonPath("$.key").doesNotExist());

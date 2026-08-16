@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.prashanth.dashboard.aop.Auditable;
 import com.prashanth.dashboard.dto.AIChatRequest;
 import com.prashanth.dashboard.dto.AIChatResponse;
+import com.prashanth.dashboard.dto.AssistantResult;
 import com.prashanth.dashboard.service.SentinelCoreAssistantService;
 
 /**
@@ -55,9 +56,9 @@ public class AIController {
         long startedAt   = System.nanoTime();
 
         try {
-            String reply = assistantService.chat(userMessage, request.conversation(), currentPage, currentRoute);
+            AssistantResult result = assistantService.chat(userMessage, request.conversation(), currentPage, currentRoute);
             log.debug("AI chat request completed (durationMs={})", elapsedMillis(startedAt));
-            return ResponseEntity.ok(new AIChatResponse(reply, timestamp));
+            return ResponseEntity.ok(new AIChatResponse(result.text(), timestamp, result.suggestions()));
 
         } catch (Exception ex) {
             log.error("Unexpected AI chat failure (type={}, durationMs={}).",

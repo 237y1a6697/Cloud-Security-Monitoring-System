@@ -96,7 +96,7 @@ export default function AIChatWindow() {
                 )}
 
                 {messages.map((msg) => (
-                    <ChatMessage key={msg.id} message={msg} />
+                    <ChatMessage key={msg.id} message={msg} onSelectQuestion={handleSelectQuestion} />
                 ))}
 
                 {loading && (

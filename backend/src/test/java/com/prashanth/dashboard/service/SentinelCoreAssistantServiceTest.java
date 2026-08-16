@@ -1,5 +1,6 @@
 package com.prashanth.dashboard.service;
 
+import com.prashanth.dashboard.dto.AssistantResult;
 import com.prashanth.dashboard.dto.ChatMessageDTO;
 import com.prashanth.dashboard.repository.AlertRepository;
 import com.prashanth.dashboard.repository.AssetRepository;
@@ -38,12 +39,19 @@ class SentinelCoreAssistantServiceTest {
 
     @Test
     void testDashboardExplanationAndMetrics() {
-        String answer = assistantService.chat("explain the security dashboard metrics", null, "Dashboard", "/");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("explain the security dashboard metrics", null, "Dashboard", "/");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("Assets"));
         assertTrue(answer.contains("Security Alerts"));
         assertTrue(answer.contains("Active Incidents"));
         assertTrue(answer.contains("Vulnerabilities"));
+
+        // Match context suggestions
+        List<String> suggestions = result.suggestions();
+        assertFalse(suggestions.isEmpty());
+        assertTrue(suggestions.contains("Show security overview"));
+        assertTrue(suggestions.contains("Explain compliance score"));
     }
 
     @Test
@@ -53,21 +61,32 @@ class SentinelCoreAssistantServiceTest {
         when(vulnerabilityRepository.count()).thenReturn(12L);
         when(alertRepository.findAll()).thenReturn(Collections.emptyList());
 
-        String answer = assistantService.chat("tell me about the dashboard overview", null, "Dashboard", "/");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("tell me about the dashboard overview", null, "Dashboard", "/");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("10"));
         assertTrue(answer.contains("5"));
         assertTrue(answer.contains("12"));
+
+        List<String> suggestions = result.suggestions();
+        assertFalse(suggestions.isEmpty());
+        assertTrue(suggestions.contains("Explain Dashboard metrics"));
+        assertTrue(suggestions.contains("Explain compliance score"));
     }
 
     @Test
     void testAssetManagement() {
         when(assetRepository.count()).thenReturn(25L);
-        String answer = assistantService.chat("tell me about asset management", null, "Assets", "/assets");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("tell me about asset management", null, "Assets", "/assets");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("25"));
         assertTrue(answer.contains("Asset Management"));
         assertTrue(answer.contains("inventory"));
+
+        List<String> suggestions = result.suggestions();
+        assertTrue(suggestions.contains("Show asset status"));
+        assertTrue(suggestions.contains("How are assets categorized?"));
     }
 
     @Test
@@ -75,11 +94,16 @@ class SentinelCoreAssistantServiceTest {
         when(incidentRepository.countActiveIncidents()).thenReturn(4L);
         when(incidentRepository.countCriticalIncidents()).thenReturn(1L);
 
-        String answer = assistantService.chat("tell me about incident response workflow", null, "Incidents", "/incidents");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("tell me about incident response workflow", null, "Incidents", "/incidents");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("4"));
         assertTrue(answer.contains("1"));
         assertTrue(answer.contains("Incident Response"));
+
+        List<String> suggestions = result.suggestions();
+        assertTrue(suggestions.contains("Explain incident lifecycle"));
+        assertTrue(suggestions.contains("Explain incident severity"));
     }
 
     @Test
@@ -87,56 +111,118 @@ class SentinelCoreAssistantServiceTest {
         when(vulnerabilityRepository.count()).thenReturn(30L);
         when(vulnerabilityRepository.countCriticalVulnerabilities()).thenReturn(8L);
 
-        String answer = assistantService.chat("explain vulnerability management", null, "Vulnerabilities", "/vulnerabilities");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("explain vulnerability management", null, "Vulnerabilities", "/vulnerabilities");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("30"));
         assertTrue(answer.contains("8"));
         assertTrue(answer.contains("Vulnerability Management"));
+
+        List<String> suggestions = result.suggestions();
+        assertTrue(suggestions.contains("Explain critical vulnerabilities"));
+        assertTrue(suggestions.contains("Explain remediation"));
     }
 
     @Test
     void testCompliance() {
-        String answer = assistantService.chat("what does compliance mean?", null, "Compliance", "/compliance");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("what does compliance mean?", null, "Compliance", "/compliance");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("ISO 27001"));
         assertTrue(answer.contains("SOC 2"));
         assertTrue(answer.contains("Compliance"));
+
+        List<String> suggestions = result.suggestions();
+        assertTrue(suggestions.contains("Explain compliance score"));
+        assertTrue(suggestions.contains("Generate compliance report"));
     }
 
     @Test
     void testReports() {
-        String answer = assistantService.chat("explain available reports", null, "Reports", "/reports");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("explain available reports", null, "Reports", "/reports");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("Executive Summary"));
         assertTrue(answer.contains("Reports"));
         assertTrue(answer.contains("PDF"));
+
+        List<String> suggestions = result.suggestions();
+        assertTrue(suggestions.contains("Available reports"));
+        assertTrue(suggestions.contains("Dashboard report"));
     }
 
     @Test
     void testSentinelCoreOverview() {
-        String answer = assistantService.chat("what is sentinelcore secureops?", null, "Dashboard", "/");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("what is sentinelcore secureops?", null, "Dashboard", "/");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("SentinelCore SecureOps"));
         assertTrue(answer.contains("comprehensive security operations platform"));
+
+        List<String> suggestions = result.suggestions();
+        assertTrue(suggestions.contains("Explain Dashboard"));
+        assertTrue(suggestions.contains("Explain Assets"));
+    }
+
+    // Conversational Intents Tests
+
+    @Test
+    void testGreetingsGreetingIntents() {
+        String[] greetings = {"hi", "hello", "hey", "hii"};
+        for (String msg : greetings) {
+            AssistantResult result = assistantService.chat(msg, null, "Dashboard", "/");
+            assertNotNull(result);
+            assertTrue(result.text().contains("Hi! I'm the SentinelCore Internal Assistant"));
+            assertTrue(result.suggestions().contains("Explain Dashboard metrics"));
+            assertTrue(result.suggestions().contains("Explain compliance"));
+        }
+    }
+
+    @Test
+    void testWhatCanYouDoHelpIntents() {
+        AssistantResult result = assistantService.chat("what can you do?", null, "Dashboard", "/");
+        assertNotNull(result);
+        assertTrue(result.text().contains("Dashboard metrics"));
+        assertTrue(result.text().contains("Compliance"));
+        assertTrue(result.suggestions().contains("Explain Dashboard"));
+        assertTrue(result.suggestions().contains("Explain Assets"));
+    }
+
+    @Test
+    void testThanksIntent() {
+        AssistantResult result = assistantService.chat("thanks so much", null, "Dashboard", "/");
+        assertNotNull(result);
+        assertTrue(result.text().contains("welcome"));
+        assertTrue(result.suggestions().contains("Explain Dashboard"));
+    }
+
+    @Test
+    void testGoodbyeIntent() {
+        AssistantResult result = assistantService.chat("bye bye", null, "Dashboard", "/");
+        assertNotNull(result);
+        assertTrue(result.text().contains("Goodbye"));
+        assertTrue(result.suggestions().contains("Explain Dashboard"));
     }
 
     // 9. Unknown Questions
 
     @Test
     void testUnknownQuestion() {
-        String answer = assistantService.chat("what is the weather helper?", null, "Dashboard", "/");
-        assertNotNull(answer);
-        assertTrue(answer.contains("SentinelCore Internal Assistant"));
-        assertTrue(answer.contains("Dashboard, Assets, Incidents"));
+        AssistantResult result = assistantService.chat("what is the weather helper?", null, "Dashboard", "/");
+        assertNotNull(result);
+        assertTrue(result.text().contains("currently focused on SentinelCore"));
+        assertTrue(result.suggestions().contains("Explain Dashboard"));
+        assertTrue(result.suggestions().contains("Explain Compliance"));
     }
 
     // 10. Empty Question
 
     @Test
     void testEmptyQuestion() {
-        String answer = assistantService.chat("", null, "Dashboard", "/");
-        assertNotNull(answer);
-        assertTrue(answer.contains("SentinelCore Internal Assistant"));
+        AssistantResult result = assistantService.chat("", null, "Dashboard", "/");
+        assertNotNull(result);
+        assertTrue(result.text().contains("currently focused on SentinelCore"));
+        assertTrue(result.suggestions().contains("Explain Dashboard"));
     }
 
     // 11. Database Metric Retrieval Success
@@ -149,8 +235,9 @@ class SentinelCoreAssistantServiceTest {
         when(vulnerabilityRepository.countCriticalVulnerabilities()).thenReturn(22L);
         when(alertRepository.findAll()).thenReturn(new ArrayList<>()); // 0 alerts
 
-        String answer = assistantService.chat("show live stats", null, "Dashboard", "/");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("show live stats", null, "Dashboard", "/");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("150"));
         assertTrue(answer.contains("37"));
         assertTrue(answer.contains("99"));
@@ -163,12 +250,13 @@ class SentinelCoreAssistantServiceTest {
     void testDatabaseMetricRetrievalFailure() {
         when(assetRepository.count()).thenThrow(new RuntimeException("DB Connection Timeout"));
 
-        String answer = assistantService.chat("how many assets do we have?", null, "Assets", "/assets");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("how many assets do we have?", null, "Assets", "/assets");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("*(unavailable)*"));
     }
 
-    // 13. Health Endpoint / Configuration Readiness
+    // 13. Health Endpoint / Configuration Verification
 
     @Test
     void testHealthVerification() {
@@ -188,8 +276,9 @@ class SentinelCoreAssistantServiceTest {
         when(vulnerabilityRepository.count()).thenReturn(20L);
 
         // User asks a follow-up containing "which ones are critical"
-        String answer = assistantService.chat("which ones are critical?", history, "Dashboard", "/");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("which ones are critical?", history, "Dashboard", "/");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("Critical Vulnerabilities"));
         assertTrue(answer.contains("5"));
     }
@@ -202,8 +291,9 @@ class SentinelCoreAssistantServiceTest {
         );
 
         // User asks a follow-up that gets boosted to incident lifecycle
-        String answer = assistantService.chat("what is the lifecycle?", history, "Dashboard", "/");
-        assertNotNull(answer);
+        AssistantResult result = assistantService.chat("what is the lifecycle?", history, "Dashboard", "/");
+        assertNotNull(result);
+        String answer = result.text();
         assertTrue(answer.contains("Incident Lifecycle"));
         assertTrue(answer.contains("Investigating"));
     }

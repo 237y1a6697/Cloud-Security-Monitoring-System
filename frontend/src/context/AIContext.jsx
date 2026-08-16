@@ -4,11 +4,26 @@ import aiAssistantService from '../services/aiAssistantService.js';
 
 export const AIContext = createContext(null);
 
+const WELCOME_MESSAGE = {
+    id: 'welcome-msg',
+    role: 'assistant',
+    content: "👋 Welcome to SentinelCore!\n\nI'm your SentinelCore Internal Assistant. I can help you understand your security operations dashboard and SentinelCore modules.\n\nWhat would you like to explore?",
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    suggestions: [
+        "Explain Dashboard",
+        "Explain Assets",
+        "Explain Incidents",
+        "Explain Vulnerabilities",
+        "Explain Compliance",
+        "Explain Reports"
+    ]
+};
+
 export function AIProvider({ children }) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState(() => {
         const saved = sessionStorage.getItem('sentinelcore_ai_chat');
-        return saved ? JSON.parse(saved) : [];
+        return saved ? JSON.parse(saved) : [WELCOME_MESSAGE];
     });
     const [loading, setLoading] = useState(false);
     const location = useLocation();
@@ -24,7 +39,14 @@ export function AIProvider({ children }) {
 
     const toggleOpen = useCallback(() => setIsOpen(prev => !prev), []);
     const closePanel = useCallback(() => setIsOpen(false), []);
-    const clearChat = useCallback(() => setMessages([]), []);
+    const clearChat = useCallback(() => {
+        const welcomeTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setMessages([{
+            ...WELCOME_MESSAGE,
+            id: Date.now() + '-welcome',
+            timestamp: welcomeTimestamp
+        }]);
+    }, []);
 
     const getPageName = (path) => {
         if (path.includes('/infrastructure')) return 'Infrastructure';
@@ -68,7 +90,8 @@ export function AIProvider({ children }) {
                 id: Date.now() + '-bot',
                 role: 'assistant',
                 content: response.data.text,
-                timestamp: response.data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                timestamp: response.data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                suggestions: response.data.suggestions || []
             };
 
             setMessages(prev => [...prev, botMsg]);
@@ -78,7 +101,8 @@ export function AIProvider({ children }) {
                 id: Date.now() + '-bot',
                 role: 'assistant',
                 content: "I'm having trouble connecting to the SentinelCore SecureOps security brain right now. Please ensure the backend server is running and try again.",
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                suggestions: []
             };
             setMessages(prev => [...prev, botMsg]);
         } finally {

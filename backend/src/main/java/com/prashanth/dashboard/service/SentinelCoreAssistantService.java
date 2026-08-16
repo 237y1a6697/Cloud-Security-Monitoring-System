@@ -1,5 +1,6 @@
 package com.prashanth.dashboard.service;
 
+import com.prashanth.dashboard.dto.AssistantResult;
 import com.prashanth.dashboard.dto.ChatMessageDTO;
 import com.prashanth.dashboard.repository.AlertRepository;
 import com.prashanth.dashboard.repository.AssetRepository;
@@ -26,7 +27,6 @@ public class SentinelCoreAssistantService {
 
     private static final Logger log = LoggerFactory.getLogger(SentinelCoreAssistantService.class);
 
-    // ── Repository injection (all pre-existing) ───────────────────────────────
     private final AssetRepository        assetRepository;
     private final IncidentRepository     incidentRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
@@ -44,22 +44,18 @@ public class SentinelCoreAssistantService {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /**
-     * Always returns true — the internal assistant is always ready.
-     */
     public boolean isConfigured() {
         return true;
     }
 
     /**
-     * Main entry point.  Resolves an intent from the user's message (and
-     * optional conversation history for follow-up context), then generates
-     * a professional answer from the knowledge base + live data.
+     * Chat entry point. Resolves user message, matches intent, queries DB,
+     * and compiles dynamic, context-aware suggestions.
      */
-    public String chat(String userMessage,
-                       List<ChatMessageDTO> history,
-                       String currentPage,
-                       String currentRoute) {
+    public AssistantResult chat(String userMessage,
+                               List<ChatMessageDTO> history,
+                               String currentPage,
+                               String currentRoute) {
         try {
             String normalised = normalise(userMessage);
 
@@ -68,27 +64,36 @@ public class SentinelCoreAssistantService {
 
             Intent intent = detectIntent(normalised, followUpTopic, currentPage, currentRoute);
             log.debug("[SentinelCore Assistant] intent={} message='{}'", intent, userMessage);
-            return generateAnswer(intent, normalised);
+
+            String text = generateAnswer(intent, normalised);
+            List<String> suggestions = getSuggestionsForIntent(intent);
+
+            return new AssistantResult(text, suggestions);
         } catch (Exception ex) {
             log.error("[SentinelCore Assistant] Unexpected error processing chat", ex);
-            return "Sorry, I couldn't process that request. Please try again.";
+            return new AssistantResult("Sorry, I couldn't process that request. Please try again.", List.of());
         }
     }
 
     // ── Normalisation ─────────────────────────────────────────────────────────
 
-    /** Lower-case, trim, collapse whitespace, strip trailing punctuation. */
     static String normalise(String text) {
         if (text == null) return "";
         return text.toLowerCase()
+                   .replaceAll("[^a-z0-9\\s]", " ")
                    .trim()
-                   .replaceAll("[?!.,;:]+$", "")
                    .replaceAll("\\s+", " ");
     }
 
-    // ── Intent enum ───────────────────────────────────────────────────────────
+    // ── Intent Enum ───────────────────────────────────────────────────────────
 
     enum Intent {
+        GREETING,
+        HOW_ARE_YOU,
+        WHO_ARE_YOU,
+        HELP,
+        THANKS,
+        GOODBYE,
         DASHBOARD_METRICS,
         DASHBOARD_OVERVIEW,
         ASSET_MANAGEMENT,
@@ -104,13 +109,8 @@ public class SentinelCoreAssistantService {
         UNKNOWN
     }
 
-    // ── Intent detection via keyword scoring ──────────────────────────────────
+    // ── Intent Detection via Word-boundary Keyword Scoring ────────────────────
 
-    /**
-     * Scores each intent by counting how many of its keywords appear in the
-     * normalised message.  The intent with the highest positive score wins.
-     * Ties are broken by order of declaration (most-specific first).
-     */
     Intent detectIntent(String normalised, String followUpTopic, String currentPage, String currentRoute) {
         if (normalised == null || normalised.isBlank()) {
             return Intent.UNKNOWN;
@@ -118,6 +118,7 @@ public class SentinelCoreAssistantService {
 
         Map<Intent, int[]> scores = new HashMap<>();
 
+        // Multi-word phrase mapping
         score(scores, Intent.LIVE_STATS, normalised,
               "how many", "count", "total", "how much", "live", "current number",
               "how many assets", "how many incidents", "how many vulnerabilities",
@@ -168,12 +169,29 @@ public class SentinelCoreAssistantService {
               "excel", "download", "schedule", "email report", "send report");
 
         score(scores, Intent.SENTINELCORE_OVERVIEW, normalised,
-              "sentinelcore", "what is sentinelcore", "what are you", "who are you",
-              "what can you do", "about sentinelcore", "platform", "modules",
+              "sentinelcore", "what is sentinelcore", "about sentinelcore", "platform", "modules",
               "secureops", "purpose");
 
-        // Follow-up context boost: if the last topic was, say, vulnerabilities
-        // and the user says "which ones are critical", boost the relevant intent
+        // Conversational Intents
+        score(scores, Intent.GREETING, normalised,
+              "hi", "hello", "hey", "hii", "good morning", "good afternoon", "good evening", "yo");
+
+        score(scores, Intent.HOW_ARE_YOU, normalised,
+              "how are you", "how is it going", "how s it going");
+
+        score(scores, Intent.WHO_ARE_YOU, normalised,
+              "who are you", "who is this");
+
+        score(scores, Intent.HELP, normalised,
+              "what can you do", "help", "what are you", "capabilities");
+
+        score(scores, Intent.THANKS, normalised,
+              "thanks", "thank you", "thx", "appreciated");
+
+        score(scores, Intent.GOODBYE, normalised,
+              "bye", "goodbye", "exit", "quit");
+
+        // Follow-up context boost
         if (followUpTopic != null) {
             boost(scores, followUpTopic);
         }
@@ -191,7 +209,7 @@ public class SentinelCoreAssistantService {
             return contextualFallback(currentPage, currentRoute);
         }
 
-        // Find winner
+        // Find winner based on score
         return scores.entrySet().stream()
                      .filter(e -> e.getValue()[0] > 0)
                      .max(Map.Entry.comparingByValue((a, b) -> a[0] - b[0]))
@@ -199,16 +217,18 @@ public class SentinelCoreAssistantService {
                      .orElse(contextualFallback(currentPage, currentRoute));
     }
 
-    /** Count how many of the given keywords appear in the text and add to score. */
     private void score(Map<Intent, int[]> scores, Intent intent,
                        String text, String... keywords) {
-        int count = (int) Arrays.stream(keywords)
-                                .filter(text::contains)
-                                .count();
+        String spacedText = " " + text + " ";
+        int count = 0;
+        for (String kw : keywords) {
+            if (spacedText.contains(" " + kw + " ")) {
+                count++;
+            }
+        }
         scores.merge(intent, new int[]{count}, (a, b) -> { a[0] += b[0]; return a; });
     }
 
-    /** Boost a follow-up topic's related intent. */
     private void boost(Map<Intent, int[]> scores, String topic) {
         switch (topic) {
             case "vulnerability" ->
@@ -221,9 +241,6 @@ public class SentinelCoreAssistantService {
         }
     }
 
-    /**
-     * If no keyword matches, use current page/route for a contextual fallback.
-     */
     private Intent contextualFallback(String currentPage, String currentRoute) {
         String route = currentRoute != null ? currentRoute.toLowerCase() : "";
         String page  = currentPage  != null ? currentPage.toLowerCase()  : "";
@@ -236,18 +253,10 @@ public class SentinelCoreAssistantService {
         return Intent.UNKNOWN;
     }
 
-    // ── Follow-up topic resolution ────────────────────────────────────────────
-
-    /**
-     * Looks at the last assistant reply in history to infer a topic for
-     * short follow-up messages like "which ones are critical?".
-     */
     private String resolveFollowUpTopic(String normalised, List<ChatMessageDTO> history) {
-        // Only activate for short, vague messages
         if (normalised.split(" ").length > 6) return null;
         if (history == null || history.isEmpty()) return null;
 
-        // Find last assistant message
         for (int i = history.size() - 1; i >= 0; i--) {
             ChatMessageDTO msg = history.get(i);
             if ("assistant".equals(msg.role()) && msg.content() != null) {
@@ -261,10 +270,16 @@ public class SentinelCoreAssistantService {
         return null;
     }
 
-    // ── Answer generation ─────────────────────────────────────────────────────
+    // ── Answer Generation ─────────────────────────────────────────────────────
 
     private String generateAnswer(Intent intent, String normalised) {
         return switch (intent) {
+            case GREETING            -> "👋 Hi! I'm the SentinelCore Internal Assistant.\n\nI can help you navigate and understand your security operations dashboard.\n\nTry one of these:";
+            case HOW_ARE_YOU         -> "I'm functioning normally and ready to help you monitor SentinelCore's security posture. How can I assist you today?";
+            case WHO_ARE_YOU         -> "I am the **SentinelCore Internal Assistant**, running offline within your Spring Boot backend to assist with SecureOps queries.";
+            case HELP                -> "👋 Hi! I'm the SentinelCore Internal Assistant.\n\nI can help you with:\n\n• Dashboard metrics\n• Assets\n• Incidents\n• Vulnerabilities\n• Compliance\n• Reports\n• SentinelCore functionality\n\nWhat would you like to know?";
+            case THANKS              -> "You're welcome! I'm here whenever you need help with SentinelCore.";
+            case GOODBYE             -> "Goodbye! Feel free to reach back out if you have more security operations questions.";
             case LIVE_STATS          -> buildLiveStats();
             case DASHBOARD_METRICS   -> buildDashboardMetrics();
             case DASHBOARD_OVERVIEW  -> buildDashboardOverview();
@@ -281,7 +296,80 @@ public class SentinelCoreAssistantService {
         };
     }
 
-    // ── Answer builders ───────────────────────────────────────────────────────
+    // ── Suggestions Mapping Service ───────────────────────────────────────────
+
+    private List<String> getSuggestionsForIntent(Intent intent) {
+        return switch (intent) {
+            case DASHBOARD_OVERVIEW -> List.of(
+                "Explain Dashboard metrics",
+                "Show security overview",
+                "Explain security alerts",
+                "Explain compliance score"
+            );
+            case DASHBOARD_METRICS -> List.of(
+                "Show security overview",
+                "Explain security alerts",
+                "Explain compliance score",
+                "Explain Asset Management"
+            );
+            case ASSET_MANAGEMENT, ASSET_STATUS -> List.of(
+                "Explain Asset Management",
+                "Show asset status",
+                "Explain asset monitoring",
+                "How are assets categorized?"
+            );
+            case INCIDENT_RESPONSE, INCIDENT_LIFECYCLE -> List.of(
+                "Explain Incident Response",
+                "Explain incident severity",
+                "Explain incident lifecycle",
+                "How are incidents handled?"
+            );
+            case VULNERABILITY_MANAGEMENT, VULNERABILITY_CRITICAL -> List.of(
+                "Explain Vulnerability Management",
+                "Explain critical vulnerabilities",
+                "Explain vulnerability severity",
+                "Explain remediation"
+            );
+            case COMPLIANCE -> List.of(
+                "Explain Compliance",
+                "Explain compliance score",
+                "Explain security controls",
+                "Generate compliance report"
+            );
+            case REPORTS -> List.of(
+                "Available reports",
+                "Dashboard report",
+                "Compliance report",
+                "Vulnerability report"
+            );
+            case GREETING -> List.of(
+                "Explain Dashboard metrics",
+                "Explain vulnerabilities",
+                "Explain incidents",
+                "Explain compliance"
+            );
+            case UNKNOWN -> List.of(
+                "Explain Dashboard",
+                "Explain Vulnerabilities",
+                "Explain Incidents",
+                "Explain Compliance"
+            );
+            case HELP -> List.of(
+                "Explain Dashboard",
+                "Explain Assets",
+                "Explain Incidents",
+                "Explain Vulnerabilities"
+            );
+            default -> List.of(
+                "Explain Dashboard",
+                "Explain Assets",
+                "Explain Incidents",
+                "Explain Vulnerabilities"
+            );
+        };
+    }
+
+    // ── Answer Builders ───────────────────────────────────────────────────────
 
     private String buildDashboardMetrics() {
         return """
@@ -469,12 +557,11 @@ public class SentinelCoreAssistantService {
     }
 
     private String buildUnknown() {
-        return "I am the **SentinelCore Internal Assistant**. I can help with the Dashboard, Assets, Incidents, Vulnerabilities, Compliance, Reports, and SentinelCore functionality.";
+        return "I'm currently focused on SentinelCore and can help with your security dashboard, assets, incidents, vulnerabilities, compliance, and reports.";
     }
 
-    // ── Safe database access ──────────────────────────────────────────────────
+    // ── Safe Database Access ──────────────────────────────────────────────────
 
-    /** Executes a database count supplier, returning the result or a safe message on error. */
     private String safeCount(CountSupplier supplier) {
         try {
             return String.valueOf(supplier.get());
