@@ -162,6 +162,23 @@ class AIControllerTest {
 
     @Test
     @WithMockUser
+    void chat_grok400WithInvalidApiKey_returnsAuthenticationMessage() throws Exception {
+        when(aiChatService.isConfigured()).thenReturn(true);
+        when(aiChatService.chat(anyString(), any(), anyString(), anyString()))
+            .thenThrow(new AiChatService.AiProviderException(400, "Grok request failed: {\"code\":\"invalid_api_key\"}"));
+
+        AIChatRequest req = new AIChatRequest("test", null, "Dashboard", "/");
+
+        mvc.perform(post("/api/ai/chat")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.text").value(containsString("keys must start with 'xai-'")));
+    }
+
+    @Test
+    @WithMockUser
     void chat_grok403_returnsAuthenticationMessage() throws Exception {
         assertProviderMessage(403, "authentication failed");
     }

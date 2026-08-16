@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Spring AI-backed xAI Grok implementation for the SentinelCore assistant. */
+/** Spring AI-backed OpenAI implementation for the SentinelCore assistant. */
 @Service
 public class AiChatService {
 
@@ -32,7 +32,7 @@ public class AiChatService {
 
     public AiChatService(ChatClient.Builder chatClientBuilder,
                          @Value("${spring.ai.openai.api-key:}") String apiKey,
-                         @Value("${spring.ai.openai.chat.options.model:grok-4.5}") String model,
+                         @Value("${spring.ai.openai.chat.options.model:gpt-4o}") String model,
                          VulnerabilityRepository vulnerabilityRepository) {
         this.chatClient = chatClientBuilder.build();
         this.apiKey = apiKey;
@@ -51,7 +51,7 @@ public class AiChatService {
     public String chat(String userMessage, List<ChatMessageDTO> history,
                        String currentPage, String currentRoute) throws AiProviderException {
         if (!isConfigured()) {
-            throw new AiProviderException(0, "Grok API key is not configured on the server.");
+            throw new AiProviderException(0, "OpenAI API key is not configured on the server.");
         }
 
         List<Message> messages = new ArrayList<>();
@@ -62,7 +62,7 @@ public class AiChatService {
         try {
             String response = chatClient.prompt(new Prompt(messages)).call().content();
             if (response == null || response.isBlank()) {
-                throw new AiProviderException(502, "Grok returned an empty response.");
+                throw new AiProviderException(502, "OpenAI returned an empty response.");
             }
             return response;
         } catch (AiProviderException e) {
@@ -87,22 +87,27 @@ public class AiChatService {
         }
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AiChatService.class);
+
     private AiProviderException toProviderException(Exception exception) {
+        log.error("AI chat/provider call failed: {}", exception.getMessage(), exception);
         Throwable current = exception;
         while (current != null) {
             if (current instanceof RestClientResponseException responseException) {
-                return new AiProviderException(responseException.getStatusCode().value(), "Grok request failed.");
+                String responseBody = responseException.getResponseBodyAsString();
+                log.error("AI provider returned status={} responseBody={}", responseException.getStatusCode().value(), responseBody);
+                return new AiProviderException(responseException.getStatusCode().value(), "OpenAI request failed: " + responseBody);
             }
             if (current instanceof ResourceAccessException) {
-                return new AiProviderException(408, "Grok request timed out or could not be reached.");
+                return new AiProviderException(408, "OpenAI request timed out or could not be reached.");
             }
             Integer status = findHttpStatus(current.getMessage());
             if (status != null) {
-                return new AiProviderException(status, "Grok request failed with HTTP " + status + ".");
+                return new AiProviderException(status, "OpenAI request failed with HTTP " + status + ".");
             }
             current = current.getCause();
         }
-        return new AiProviderException(503, "Grok provider request failed.");
+        return new AiProviderException(503, "OpenAI provider request failed.");
     }
 
     private Integer findHttpStatus(String message) {
