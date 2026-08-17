@@ -6,6 +6,7 @@ import com.prashanth.dashboard.repository.AlertRepository;
 import com.prashanth.dashboard.repository.AssetRepository;
 import com.prashanth.dashboard.repository.IncidentRepository;
 import com.prashanth.dashboard.repository.VulnerabilityRepository;
+import com.prashanth.dashboard.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * SentinelCore Internal Assistant — a fully deterministic, rule-based
@@ -31,15 +34,18 @@ public class SentinelCoreAssistantService {
     private final IncidentRepository     incidentRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
     private final AlertRepository        alertRepository;
+    private final UserRepository         userRepository;
 
     public SentinelCoreAssistantService(AssetRepository assetRepository,
                                         IncidentRepository incidentRepository,
                                         VulnerabilityRepository vulnerabilityRepository,
-                                        AlertRepository alertRepository) {
+                                        AlertRepository alertRepository,
+                                        UserRepository userRepository) {
         this.assetRepository       = assetRepository;
         this.incidentRepository    = incidentRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.alertRepository        = alertRepository;
+        this.userRepository        = userRepository;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -59,16 +65,83 @@ public class SentinelCoreAssistantService {
         try {
             String normalised = normalise(userMessage);
 
-            // Resolve a follow-up topic from recent conversation if needed
+            // Scope Check: Reject questions unrelated to SentinelCore
+            if (!isWithinSentinelCoreScope(normalised)) {
+                return new AssistantResult(
+                    "That question is outside my SentinelCore scope.\n\n" +
+                    "I can help you with the Dashboard, Assets, Incidents, Vulnerabilities, Compliance, Reports, and SentinelCore workflows.",
+                    getSuggestionsForGreetingAndHelp(currentPage),
+                    "OUT_OF_SCOPE",
+                    null,
+                    null
+                );
+            }
+
+            // Navigational Intents
+            if (isNavigational(normalised)) {
+                WorkflowContext ctx = getActiveWorkflow(history);
+                if (ctx != null) {
+                    if (normalised.equals("cancel")) {
+                        return new AssistantResult(
+                            "Workflow cancelled. What else can I help you with?",
+                            getSuggestionsForGreetingAndHelp(currentPage),
+                            "CANCEL_WORKFLOW",
+                            null,
+                            null
+                        );
+                    } else if (normalised.contains("all steps") || normalised.equals("all steps")) {
+                        return handleShowAllSteps(ctx.workflow);
+                    } else if (normalised.equals("next") || normalised.equals("next step")) {
+                        int nextStep = ctx.currentStep + 1;
+                        if (nextStep > ctx.totalSteps) {
+                            return new AssistantResult(
+                                "You have completed the guided workflow! What else can I help you with?",
+                                getSuggestionsForGreetingAndHelp(currentPage),
+                                ctx.workflow,
+                                null,
+                                null
+                            );
+                        } else {
+                            return renderWorkflowStep(ctx.workflow, nextStep);
+                        }
+                    } else if (normalised.equals("back") || normalised.equals("go back")) {
+                        int prevStep = Math.max(1, ctx.currentStep - 1);
+                        return renderWorkflowStep(ctx.workflow, prevStep);
+                    }
+                } else {
+                    return new AssistantResult(
+                        "There is no active workflow to navigate. How can I help you today?",
+                        getSuggestionsForGreetingAndHelp(currentPage),
+                        "UNKNOWN",
+                        null,
+                        null
+                    );
+                }
+            }
+
+            // Resolve follow-up topics
             String followUpTopic = resolveFollowUpTopic(normalised, history);
 
             Intent intent = detectIntent(normalised, followUpTopic, currentPage, currentRoute);
             log.debug("[SentinelCore Assistant] intent={} message='{}'", intent, userMessage);
 
-            String text = generateAnswer(intent, normalised);
-            List<String> suggestions = getSuggestionsForIntent(intent);
+            String text = generateAnswer(intent, normalised, currentPage);
+            List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
 
-            return new AssistantResult(text, suggestions);
+            // Set workflow step settings for Rich DTO if applicable
+            Integer step = null;
+            Integer totalSteps = null;
+            String intentStr = intent.name();
+
+            if (intent == Intent.CREATE_ASSET) {
+                step = 1;
+                totalSteps = 4;
+            } else if (intent == Intent.CREATE_INCIDENT) {
+                step = 1;
+                totalSteps = 4;
+            }
+
+            return new AssistantResult(text, suggestions, intentStr, step, totalSteps);
         } catch (Exception ex) {
             log.error("[SentinelCore Assistant] Unexpected error processing chat", ex);
             return new AssistantResult("Sorry, I couldn't process that request. Please try again.", List.of());
@@ -106,7 +179,188 @@ public class SentinelCoreAssistantService {
         REPORTS,
         SENTINELCORE_OVERVIEW,
         LIVE_STATS,
+        CREATE_ASSET,
+        MANAGE_ASSET,
+        CREATE_INCIDENT,
+        MANAGE_INCIDENT,
+        MANAGE_VULNERABILITY,
         UNKNOWN
+    }
+
+    // ── Scope Verification ───────────────────────────────────────────────────
+
+    boolean isWithinSentinelCoreScope(String normalised) {
+        if (normalised == null || normalised.isBlank()) {
+            return false;
+        }
+
+        String[] keywords = {
+            "asset", "assets", "device", "devices", "hardware", "server", "servers",
+            "workstation", "workstations", "router", "routers", "switch", "switches",
+            "firewall", "firewalls", "computer", "computers", "endpoint", "endpoints",
+            "ip address", "ipaddress", "inventory", "cmdb", "euleros", "euler",
+            "incident", "incidents", "ticket", "tickets", "breach", "breaches", "severity",
+            "sla", "unresolved", "resolved", "investigating", "assigned", "response",
+            "status", "title", "description", "team", "teams", "close", "remediate",
+            "remediated", "vulnerability", "vulnerabilities", "cve", "cvss", "threat",
+            "scan", "patch", "patching", "remediation", "sonarqube", "trivy",
+            "gate", "risk", "mitigation", "mitigations", "compliance", "iso", "soc",
+            "pci", "dss", "regulation", "regulations", "audit", "auditing", "control",
+            "controls", "posture", "iso27001", "soc2", "readiness", "report", "reports",
+            "generate", "export", "csv", "pdf", "download", "email", "schedule",
+            "executive summary", "mail", "dispatch", "excel", "dashboard", "overview",
+            "console", "portal", "home", "metrics", "alert", "alerts", "post", "panel",
+            "card", "chart", "trend", "help", "capable", "do", "greet", "hi", "hello",
+            "hey", "morning", "evening", "afternoon", "thanks", "bye", "goodbye", "restart",
+            "lock", "diagnostic", "diagnostics", "next", "back", "cancel", "step", "steps",
+            "previous", "option", "menu", "who are you", "what are you", "what can you",
+            "user", "users", "register", "registered", "current", "count", "stats",
+            // Platform-level scope terms
+            "sentinelcore", "secureops", "lifecycle", "live", "platform", "module",
+            "modules", "purpose"
+        };
+        
+        for (String kw : keywords) {
+            if (normalised.contains(kw)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean isNavigational(String normalised) {
+        return normalised.equals("next") || normalised.equals("next step") || normalised.equals("nextstep") || 
+               normalised.equals("back") || normalised.equals("go back") || normalised.equals("previous") || 
+               normalised.equals("cancel") || normalised.equals("stop") || normalised.equals("exit") || 
+               normalised.equals("show all steps") || normalised.equals("show me all steps") || normalised.equals("all steps") || 
+               normalised.equals("show steps");
+    }
+
+    // ── Workflow Parsing from history ────────────────────────────────────────
+
+    public static class WorkflowContext {
+        public String workflow;
+        public int currentStep;
+        public int totalSteps;
+
+        public WorkflowContext(String workflow, int currentStep, int totalSteps) {
+            this.workflow = workflow;
+            this.currentStep = currentStep;
+            this.totalSteps = totalSteps;
+        }
+    }
+
+    WorkflowContext getActiveWorkflow(List<ChatMessageDTO> history) {
+        if (history == null || history.isEmpty()) {
+            return null;
+        }
+        for (int i = history.size() - 1; i >= 0; i--) {
+            ChatMessageDTO msg = history.get(i);
+            if ("assistant".equals(msg.role()) && msg.content() != null) {
+                String content = msg.content();
+                if (content.contains("Step ") && content.contains(" of ")) {
+                    int stepIdx = content.indexOf("Step ");
+                    int ofIdx = content.indexOf(" of ", stepIdx);
+                    if (stepIdx != -1 && ofIdx != -1) {
+                        try {
+                            String stepNumStr = content.substring(stepIdx + 5, ofIdx).trim();
+                            int stepNum = Integer.parseInt(stepNumStr);
+
+                            int endIdx = ofIdx + 4;
+                            while (endIdx < content.length() && Character.isDigit(content.charAt(endIdx))) {
+                                endIdx++;
+                            }
+                            String totalNumStr = content.substring(ofIdx + 4, endIdx).trim();
+                            int totalNum = Integer.parseInt(totalNumStr);
+
+                            String wf = null;
+                            if (content.toLowerCase().contains("asset")) {
+                                wf = "CREATE_ASSET";
+                            } else if (content.toLowerCase().contains("incident")) {
+                                wf = "CREATE_INCIDENT";
+                            }
+
+                            if (wf != null) {
+                                return new WorkflowContext(wf, stepNum, totalNum);
+                            }
+                        } catch (Exception e) {
+                            // Ignored
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private AssistantResult handleShowAllSteps(String workflow) {
+        if ("CREATE_ASSET".equals(workflow)) {
+            String text = "Here are all the steps to create a new asset:\n\n" +
+                          "1. **Access Assets**: Open **Assets** from the sidebar and click **Add Asset**.\n" +
+                          "2. **Core Info**: Fill in the required `Asset Name`, `IP Address`, `Type` (Server, Workstation, Router, etc.), and `Status`.\n" +
+                          "3. **Metrics & Location**: Set performance metrics like `CPU %`, `Memory %`, `Disk %`, `Network %`, `Location`, and `Uptime`.\n" +
+                          "4. **Save**: Click **Save** to persist the asset to the database.";
+            return new AssistantResult(text, List.of("View Assets", "Create Asset"), "CREATE_ASSET", 4, 4);
+        } else {
+            String text = "Here is the complete process to report a security incident:\n\n" +
+                          "1. **Access Incidents**: Open **Incidents** in the sidebar and click **Create Incident**.\n" +
+                          "2. **Ticket Fields**: Enter the `Title`, `Description`, `Assigned Team`, and `Affected Asset`.\n" +
+                          "3. **Severity & Status**: Set severity (Critical, High, etc.) and status (Open/Investigating).\n" +
+                          "4. **Submit**: Click **Save Incident** to start the SLA timer.";
+            return new AssistantResult(text, List.of("View Incidents", "Create Incident"), "CREATE_INCIDENT", 4, 4);
+        }
+    }
+
+    private AssistantResult renderWorkflowStep(String workflow, int step) {
+        if ("CREATE_ASSET".equals(workflow)) {
+            switch (step) {
+                case 1:
+                    return new AssistantResult(
+                        "Sure. I can guide you through creating an asset.\n\n### Step 1 of 4\n\nOpen **Assets** from the left navigation.\n\nOnce you're there, click **Add Asset**.\n\nWould you like the next step?",
+                        List.of("Next step", "Show all steps", "Cancel"), "CREATE_ASSET", 1, 4
+                    );
+                case 2:
+                    return new AssistantResult(
+                        "### Step 2 of 4\n\nEnter the required asset information shown in the form:\n• `Asset Name` (hostname/identifier)\n• `IP Address` (network address)\n• `Type` (choose Server, Workstation, Router, etc.)\n• `Status` (Active, Inactive, Offline, Maintenance)\n\nReady for the next step?",
+                        List.of("Next step", "Back", "Cancel"), "CREATE_ASSET", 2, 4
+                    );
+                case 3:
+                    return new AssistantResult(
+                        "### Step 3 of 4\n\nConfigure system threshold performance metrics:\n• `CPU %`, `Memory %`, `Disk %`, `Network %` (current workload levels)\n• `Location` (deployment region/datacenter)\n• `Uptime` (active duration)\n\nReady for final step?",
+                        List.of("Next step", "Back", "Cancel"), "CREATE_ASSET", 3, 4
+                    );
+                case 4:
+                default:
+                    return new AssistantResult(
+                        "### Step 4 of 4\n\nClick the **Save** button to persist the asset to the database.\n\nYou're all set! The asset will now be audited and monitored in real-time.",
+                        List.of("View Assets", "Back", "Cancel"), "CREATE_ASSET", 4, 4
+                    );
+            }
+        } else {
+            switch (step) {
+                case 1:
+                    return new AssistantResult(
+                        "Sure. I can guide you through creating an incident.\n\n### Step 1 of 4\n\nOpen **Incidents** from the left navigation.\n\nOnce you're there, click **Create Incident**.\n\nWould you like the next step?",
+                        List.of("Next step", "Show all steps", "Cancel"), "CREATE_INCIDENT", 1, 4
+                    );
+                case 2:
+                    return new AssistantResult(
+                        "### Step 2 of 4\n\nEnter the required incident details:\n• `Title` (meaningful name)\n• `Description` (detailed description)\n• `Assigned Team` (team to handle)\n• `Affected Asset` (asset name)\n\nReady for the next step?",
+                        List.of("Next step", "Back", "Cancel"), "CREATE_INCIDENT", 2, 4
+                    );
+                case 3:
+                    return new AssistantResult(
+                        "### Step 3 of 4\n\nSelect the Severity (Critical, High, Medium, Low) and Status (Open, Investigating, Remediated, Closed).\n\n*Note: Setting severity determines the default SLA hours countdown.* Ready to finalize?",
+                        List.of("Next step", "Back", "Cancel"), "CREATE_INCIDENT", 3, 4
+                    );
+                case 4:
+                default:
+                    return new AssistantResult(
+                        "### Step 4 of 4\n\nClick the **Save Incident** button to submit. The incident will be created and the SLA timer starts counting down immediately!\n\nYou can track the remediation status directly from the Incidents page.",
+                        List.of("View Incidents", "Back", "Cancel"), "CREATE_INCIDENT", 4, 4
+                    );
+            }
+        }
     }
 
     // ── Intent Detection via Word-boundary Keyword Scoring ────────────────────
@@ -127,19 +381,46 @@ public class SentinelCoreAssistantService {
         score(scores, Intent.DASHBOARD_METRICS, normalised,
               "explain the security dashboard metrics", "what do the dashboard metrics mean",
               "tell me about dashboard metrics", "dashboard metrics", "security metrics",
-              "explain the metrics", "what represent");
+              "explain the metrics", "what represent", "what does active incidents mean", 
+              "what does open vulnerabilities mean", "what does compliance score mean");
 
         score(scores, Intent.DASHBOARD_OVERVIEW, normalised,
               "dashboard", "overview", "home", "main page", "security posture",
-              "security overview", "what is the dashboard");
+              "security overview", "what is the dashboard", "explain dashboard");
 
         score(scores, Intent.ASSET_STATUS, normalised,
               "asset status", "asset monitoring", "asset health", "online asset",
               "offline asset", "active asset", "inactive asset");
 
+        score(scores, Intent.CREATE_ASSET, normalised,
+              "how do i create an asset", "how can i add a device", "add new asset", "create asset",
+              "add asset", "new asset", "create devices", "add devices");
+        // Boost CREATE_ASSET so it wins over the generic ASSET_MANAGEMENT hit on "asset"
+        if (normalised.contains("create") || normalised.contains("add new")) {
+            scores.merge(Intent.CREATE_ASSET, new int[]{2}, (a, b) -> { a[0] += b[0]; return a; });
+        }
+
+        score(scores, Intent.MANAGE_ASSET, normalised,
+              "how do i manage assets", "how do i edit an asset", "how do i delete an asset", 
+              "how do i view assets", "edit an asset", "view asset details", "delete an asset",
+              "manage assets", "edit asset", "delete asset", "view assets", "manage asset");
+
         score(scores, Intent.ASSET_MANAGEMENT, normalised,
               "asset", "assets", "asset management", "infrastructure", "inventory",
-              "add asset", "create asset", "servers", "endpoints", "hardware");
+              "servers", "endpoints", "hardware");
+
+        score(scores, Intent.CREATE_INCIDENT, normalised,
+              "how do i create an incident", "how do i report an incident", "create incident",
+              "report incident", "new incident", "add incident");
+        // Boost CREATE_INCIDENT similarly
+        if (normalised.contains("create") && normalised.contains("incident")) {
+            scores.merge(Intent.CREATE_INCIDENT, new int[]{2}, (a, b) -> { a[0] += b[0]; return a; });
+        }
+
+        score(scores, Intent.MANAGE_INCIDENT, normalised,
+              "how do i manage incidents", "how do i update an incident", "how do i change incident status", 
+              "how do i assign an incident", "how do i resolve an incident", "update incident", 
+              "change severity", "change status", "resolve incident", "assign incident", "manage incidents");
 
         score(scores, Intent.INCIDENT_LIFECYCLE, normalised,
               "incident lifecycle", "incident workflow", "incident process",
@@ -148,13 +429,17 @@ public class SentinelCoreAssistantService {
 
         score(scores, Intent.INCIDENT_RESPONSE, normalised,
               "incident", "incidents", "incident response", "security incident",
-              "create incident", "add incident", "response", "severity", "sla",
-              "critical incident", "high incident");
+              "response", "severity", "sla", "critical incident", "high incident");
 
         score(scores, Intent.VULNERABILITY_CRITICAL, normalised,
               "critical vulnerabilit", "critical vuln", "high vulnerabilit",
               "which ones are critical", "critical ones", "highest cvss",
-              "most severe", "cvss", "cve", "patch", "remediation");
+              "most severe", "cvss", "cve", "patch", "remediation", "critical vulnerabilities");
+
+        score(scores, Intent.MANAGE_VULNERABILITY, normalised,
+              "how do i manage vulnerabilities", "how do i remediate a vulnerability",
+              "how do i add a vulnerability", "mitigate vulnerability", "mitigate vulnerabilities",
+              "deploy patch", "apply patch", "remediate vulnerability");
 
         score(scores, Intent.VULNERABILITY_MANAGEMENT, normalised,
               "vulnerabilit", "vulnerability management", "vuln", "patch status",
@@ -162,11 +447,17 @@ public class SentinelCoreAssistantService {
 
         score(scores, Intent.COMPLIANCE, normalised,
               "compliance", "compliant", "compliance score", "iso", "soc 2",
-              "pci", "regulation", "control", "audit", "framework", "posture");
+              "pci", "regulation", "control", "audit", "framework", "posture",
+              "explain compliance", "how do i check compliance", "what is my compliance score", 
+              "how do i generate a compliance report", "compliance score", "security controls", 
+              "compliance reports", "check compliance");
 
         score(scores, Intent.REPORTS, normalised,
               "report", "reports", "generate report", "export", "csv", "pdf",
-              "excel", "download", "schedule", "email report", "send report");
+              "excel", "download", "schedule", "email report", "send report",
+              "what reports are available", "how do i generate a report", "how do i generate a compliance report", 
+              "how do i export a dashboard report", "dashboard report", "compliance report", 
+              "vulnerability report", "incident report", "export report");
 
         score(scores, Intent.SENTINELCORE_OVERVIEW, normalised,
               "sentinelcore", "what is sentinelcore", "about sentinelcore", "platform", "modules",
@@ -272,15 +563,15 @@ public class SentinelCoreAssistantService {
 
     // ── Answer Generation ─────────────────────────────────────────────────────
 
-    private String generateAnswer(Intent intent, String normalised) {
+    private String generateAnswer(Intent intent, String normalised, String currentPage) {
         return switch (intent) {
-            case GREETING            -> "👋 Hi! I'm the SentinelCore Internal Assistant.\n\nI can help you navigate and understand your security operations dashboard.\n\nTry one of these:";
+            case GREETING            -> "👋 Hi! I'm the SentinelCore Internal Assistant.\n\nI can help you operate and understand SentinelCore.\n\nWhat would you like to do?";
             case HOW_ARE_YOU         -> "I'm functioning normally and ready to help you monitor SentinelCore's security posture. How can I assist you today?";
             case WHO_ARE_YOU         -> "I am the **SentinelCore Internal Assistant**, running offline within your Spring Boot backend to assist with SecureOps queries.";
-            case HELP                -> "👋 Hi! I'm the SentinelCore Internal Assistant.\n\nI can help you with:\n\n• Dashboard metrics\n• Assets\n• Incidents\n• Vulnerabilities\n• Compliance\n• Reports\n• SentinelCore functionality\n\nWhat would you like to know?";
+            case HELP                -> "I can guide you through SentinelCore and help you understand or manage:\n\n• Dashboard\n• Assets\n• Incidents\n• Vulnerabilities\n• Compliance\n• Reports\n\nYou can ask me how to create, update, manage, or understand any of these.";
             case THANKS              -> "You're welcome! I'm here whenever you need help with SentinelCore.";
             case GOODBYE             -> "Goodbye! Feel free to reach back out if you have more security operations questions.";
-            case LIVE_STATS          -> buildLiveStats();
+            case LIVE_STATS          -> buildLiveStats(normalised);
             case DASHBOARD_METRICS   -> buildDashboardMetrics();
             case DASHBOARD_OVERVIEW  -> buildDashboardOverview();
             case ASSET_STATUS        -> buildAssetStatus();
@@ -292,81 +583,109 @@ public class SentinelCoreAssistantService {
             case COMPLIANCE          -> buildCompliance();
             case REPORTS             -> buildReports();
             case SENTINELCORE_OVERVIEW -> buildSentinelCoreOverview();
-            case UNKNOWN             -> buildUnknown();
+            
+            // Guided workflows step 1
+            case CREATE_ASSET        -> "Sure. I can guide you through creating an asset.\n\n### Step 1 of 4\n\nOpen **Assets** from the left navigation.\n\nOnce you're there, click **Add Asset**.\n\nWould you like the next step?";
+            case MANAGE_ASSET        -> "Open **Assets** from the sidebar. You can view specifications, edit parameters, schedule maintenance, or delete systems. What do you need to do?";
+            case CREATE_INCIDENT     -> "Sure. I can guide you through creating an incident.\n\n### Step 1 of 4\n\nOpen **Incidents** from the left navigation.\n\nOnce you're there, click **Create Incident**.\n\nWould you like the next step?";
+            case MANAGE_INCIDENT     -> "Open **Incidents** from the sidebar. You can edit details, assign teams or change status / severity. What action would you like to perform?";
+            case MANAGE_VULNERABILITY -> "Open **Vulnerabilities** from sidebar. The Active Vulnerabilities Tracker lists all CVEs tracked by SentinelCore.\n\n• **Remediation**: Click **Deploy Patch** next to the CVE (requires VULN_MANAGE permission).\n• **Scanning**: Code gates (SonarQube) and Container Scans (Trivy) run automatically, but can also be reviewed under Threat Scanning Registry.\n• **Severity**: Prioritize items with CVSS score >= 9.0 (Critical) and 7.0–8.9 (High).";
+
+            case UNKNOWN             -> "I'm currently focused on SentinelCore and can help with your security dashboard, assets, incidents, vulnerabilities, compliance, and reports.";
         };
     }
 
     // ── Suggestions Mapping Service ───────────────────────────────────────────
 
-    private List<String> getSuggestionsForIntent(Intent intent) {
+    private List<String> getSuggestionsForIntent(Intent intent, String currentPage) {
         return switch (intent) {
-            case DASHBOARD_OVERVIEW -> List.of(
+            case DASHBOARD_OVERVIEW, DASHBOARD_METRICS -> List.of(
                 "Explain Dashboard metrics",
                 "Show security overview",
-                "Explain security alerts",
-                "Explain compliance score"
-            );
-            case DASHBOARD_METRICS -> List.of(
-                "Show security overview",
-                "Explain security alerts",
                 "Explain compliance score",
                 "Explain Asset Management"
             );
             case ASSET_MANAGEMENT, ASSET_STATUS -> List.of(
-                "Explain Asset Management",
+                "Create Asset",
+                "Manage Assets",
                 "Show asset status",
-                "Explain asset monitoring",
-                "How are assets categorized?"
+                "How do I edit an asset?"
+            );
+            case CREATE_ASSET -> List.of(
+                "Next step",
+                "Show all steps",
+                "Cancel"
+            );
+            case MANAGE_ASSET -> List.of(
+                "Edit an asset",
+                "View asset details",
+                "Delete an asset",
+                "Back to Assets"
             );
             case INCIDENT_RESPONSE, INCIDENT_LIFECYCLE -> List.of(
-                "Explain Incident Response",
-                "Explain incident severity",
-                "Explain incident lifecycle",
-                "How are incidents handled?"
+                "Create Incident",
+                "Manage Incidents",
+                "Incident Severity",
+                "Resolve Incident"
             );
-            case VULNERABILITY_MANAGEMENT, VULNERABILITY_CRITICAL -> List.of(
-                "Explain Vulnerability Management",
-                "Explain critical vulnerabilities",
-                "Explain vulnerability severity",
-                "Explain remediation"
+            case CREATE_INCIDENT -> List.of(
+                "Next step",
+                "Show all steps",
+                "Cancel"
+            );
+            case MANAGE_INCIDENT -> List.of(
+                "Update incident",
+                "Change severity",
+                "Change status",
+                "Resolve incident",
+                "Back to Incidents"
+            );
+            case VULNERABILITY_MANAGEMENT, VULNERABILITY_CRITICAL, MANAGE_VULNERABILITY -> List.of(
+                "View Vulnerabilities",
+                "Critical Vulnerabilities",
+                "Remediation",
+                "Manage Vulnerabilities"
             );
             case COMPLIANCE -> List.of(
-                "Explain Compliance",
                 "Explain compliance score",
-                "Explain security controls",
-                "Generate compliance report"
+                "View compliance",
+                "Generate compliance report",
+                "Back to Dashboard"
             );
             case REPORTS -> List.of(
-                "Available reports",
-                "Dashboard report",
-                "Compliance report",
-                "Vulnerability report"
+                "Dashboard Report",
+                "Compliance Report",
+                "Vulnerability Report",
+                "Incident Report"
             );
-            case GREETING -> List.of(
-                "Explain Dashboard metrics",
-                "Explain vulnerabilities",
-                "Explain incidents",
-                "Explain compliance"
-            );
-            case UNKNOWN -> List.of(
-                "Explain Dashboard",
-                "Explain Vulnerabilities",
-                "Explain Incidents",
-                "Explain Compliance"
-            );
-            case HELP -> List.of(
-                "Explain Dashboard",
-                "Explain Assets",
-                "Explain Incidents",
-                "Explain Vulnerabilities"
-            );
-            default -> List.of(
-                "Explain Dashboard",
-                "Explain Assets",
-                "Explain Incidents",
-                "Explain Vulnerabilities"
-            );
+            case GREETING, HELP -> getSuggestionsForGreetingAndHelp(currentPage);
+            case UNKNOWN -> getSuggestionsForGreetingAndHelp(currentPage);
+            default -> getSuggestionsForGreetingAndHelp(currentPage);
         };
+    }
+
+    private List<String> getSuggestionsForGreetingAndHelp(String currentPage) {
+        if (currentPage == null) currentPage = "Dashboard";
+        switch (currentPage) {
+            case "Assets" -> {
+                return List.of("Create Asset", "Manage Assets", "View Asset Details", "Explain Asset Status");
+            }
+            case "Incidents" -> {
+                return List.of("Create Incident", "Manage Incidents", "Incident Severity", "Resolve Incident");
+            }
+            case "Vulnerabilities" -> {
+                return List.of("View Vulnerabilities", "Critical Vulnerabilities", "Remediation", "Manage Vulnerabilities");
+            }
+            case "Compliance" -> {
+                return List.of("Compliance Score", "Security Controls", "Compliance Reports", "Back to Dashboard");
+            }
+            case "Reports" -> {
+                return List.of("Dashboard Report", "Compliance Report", "Vulnerability Report", "Incident Report");
+            }
+            default -> {
+                return List.of("Dashboard", "Create Asset", "Create Incident", "Manage Vulnerabilities", "Compliance", "Reports");
+            }
+        }
     }
 
     // ── Answer Builders ───────────────────────────────────────────────────────
@@ -389,7 +708,7 @@ public class SentinelCoreAssistantService {
         String assetCount  = safeCount(() -> assetRepository.count());
         String incCount    = safeCount(() -> incidentRepository.countActiveIncidents());
         String vulnCount   = safeCount(() -> vulnerabilityRepository.count());
-        String alertCount  = safeCount(() -> (long) alertRepository.findAll().size());
+        String alertCount  = safeCount(() -> alertRepository.count());
 
         return "The **SentinelCore Dashboard** is your central security operations hub. It aggregates live telemetry from PostgreSQL:\n\n" +
                "• **Total Assets**: " + assetCount + "\n" +
@@ -399,19 +718,38 @@ public class SentinelCoreAssistantService {
                "Use the dashboard to monitor your security posture at a glance and navigate to any module for deeper analysis.";
     }
 
-    private String buildLiveStats() {
-        String assets    = safeCount(() -> assetRepository.count());
-        String incidents = safeCount(() -> incidentRepository.countActiveIncidents());
-        String vulns     = safeCount(() -> vulnerabilityRepository.count());
-        String critVulns = safeCount(() -> vulnerabilityRepository.countCriticalVulnerabilities());
-        String alerts    = safeCount(() -> (long) alertRepository.findAll().size());
+    private String buildLiveStats(String normalised) {
+        String assetCount = safeCount(() -> assetRepository.count());
+        String activeIncidents = safeCount(() -> incidentRepository.countActiveIncidents());
+        String openVulns = safeCount(() -> vulnerabilityRepository.count());
+        String criticalVulns = safeCount(() -> vulnerabilityRepository.countCriticalVulnerabilities());
+        String activeAlerts = safeCount(() -> alertRepository.count());
+        String registeredUsers = safeCount(() -> userRepository.count());
+
+        // Exact match support for assets query
+        if (normalised.contains("asset")) {
+            return "The SentinelCore database currently contains " + assetCount + " registered assets.";
+        }
+        if (normalised.contains("incident")) {
+            return "There are currently " + activeIncidents + " active security incidents in the database.";
+        }
+        if (normalised.contains("vulnerabilit")) {
+            return "The database currently records " + openVulns + " vulnerabilities (with " + criticalVulns + " critical ones).";
+        }
+        if (normalised.contains("alert")) {
+            return "The database currently contains " + activeAlerts + " active security alerts.";
+        }
+        if (normalised.contains("user")) {
+            return "There are currently " + registeredUsers + " registered users in SentinelCore.";
+        }
 
         return "**Live SentinelCore Metrics** (sourced directly from the database):\n\n" +
-               "• Total Assets: **" + assets + "**\n" +
-               "• Active Incidents: **" + incidents + "**\n" +
-               "• Total Vulnerabilities: **" + vulns + "**\n" +
-               "• Critical Vulnerabilities (CVSS ≥ 7.0): **" + critVulns + "**\n" +
-               "• Security Alerts: **" + alerts + "**\n\n" +
+               "• Total Assets: **" + assetCount + "**\n" +
+               "• Active Incidents: **" + activeIncidents + "**\n" +
+               "• Total Vulnerabilities: **" + openVulns + "**\n" +
+               "• Critical Vulnerabilities (CVSS ≥ 7.0): **" + criticalVulns + "**\n" +
+               "• Security Alerts: **" + activeAlerts + "**\n" +
+               "• Registered Users: **" + registeredUsers + "**\n\n" +
                "Navigate to the relevant module for full details and filtering options.";
     }
 
@@ -458,7 +796,7 @@ public class SentinelCoreAssistantService {
                 1. **Open** — Incident is detected and logged. The clock starts on the SLA timer.
                 2. **Investigating** — The assigned team is actively analysing the incident.
                 3. **Remediated** — Corrective actions have been applied.
-                4. **Closed** — The incident is fully resolved and documented.
+                4. **Closed** — The incident is fully resolved and documentation generated.
 
                 **Key concepts:**
                 • **Severity** (Critical / High / Medium / Low) determines priority and SLA requirements.
@@ -503,9 +841,9 @@ public class SentinelCoreAssistantService {
                 **Compliance** in SentinelCore measures your organisation's adherence to security frameworks and regulatory requirements.
 
                 **Supported frameworks:**
-                • **ISO 27001** — International information security management standard.
-                • **SOC 2** — Service Organisation Controls for trust and security.
-                • **PCI DSS** — Payment Card Industry Data Security Standard.
+                • **ISO/IEC 27001:2022** — 94% Compliant (107 / 114 Checks Passed)
+                • **SOC 2 Type II (TSC)** — 98% Compliant (56 / 57 Checks Passed)
+                • **PCI DSS v4.0** — 88% Compliant (22 / 25 Checks Passed - Review Required)
 
                 **Compliance Score** — an aggregated percentage reflecting how many security controls are currently passing.
 
@@ -548,16 +886,10 @@ public class SentinelCoreAssistantService {
                 • **Vulnerabilities** — CVE tracking, CVSS scoring, and remediation guidance.
                 • **Compliance** — ISO 27001, SOC 2, and PCI DSS framework posture.
                 • **Reports** — PDF/CSV/Excel reports with email and scheduling.
-                • **Audit Logs** — tamper-evident log of all user and system actions.
-                • **User Administration** — RBAC with 9 role levels from VIEWER to SUPER_ADMIN.
-
-                **How modules work together:** Security analysts detect alerts on the Dashboard, create Incidents, link affected Assets, track Vulnerabilities to patch, verify Compliance posture, and deliver executive Reports — all within one integrated workflow.
+                • **Audit Logs** — tamper-evident log of all user and operator actions.
+                • **User Administration** — RBAC setup.
 
                 I am the **SentinelCore Internal Assistant** — I can help with any of these modules.""";
-    }
-
-    private String buildUnknown() {
-        return "I'm currently focused on SentinelCore and can help with your security dashboard, assets, incidents, vulnerabilities, compliance, and reports.";
     }
 
     // ── Safe Database Access ──────────────────────────────────────────────────

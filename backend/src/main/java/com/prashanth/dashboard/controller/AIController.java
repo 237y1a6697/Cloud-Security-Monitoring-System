@@ -58,7 +58,14 @@ public class AIController {
         try {
             AssistantResult result = assistantService.chat(userMessage, request.conversation(), currentPage, currentRoute);
             log.debug("AI chat request completed (durationMs={})", elapsedMillis(startedAt));
-            return ResponseEntity.ok(new AIChatResponse(result.text(), timestamp, result.suggestions()));
+            return ResponseEntity.ok(new AIChatResponse(
+                result.text(),
+                timestamp,
+                result.suggestions(),
+                result.intent(),
+                result.step(),
+                result.totalSteps()
+            ));
 
         } catch (Exception ex) {
             log.error("Unexpected AI chat failure (type={}, durationMs={}).",

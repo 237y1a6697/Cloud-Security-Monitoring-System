@@ -1,0 +1,45 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< com.prashanth:dashboard >-----------------------
+[INFO] Building dashboard 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ dashboard ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ dashboard ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 74 source files with javac [debug parameters release 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ dashboard ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ dashboard ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 7 source files with javac [debug parameters release 17] to target\test-classes
+[WARNING] /C:/Users/sowja/dashboard/backend/src/test/java/com/prashanth/dashboard/controller/AIControllerTest.java:[36,6] org.springframework.boot.test.mock.mockito.MockBean in org.springframework.boot.test.mock.mockito has been deprecated and marked for removal
+[INFO] /C:/Users/sowja/dashboard/backend/src/test/java/com/prashanth/dashboard/service/EmailServiceTest.java: C:\Users\sowja\dashboard\backend\src\test\java\com\prashanth\dashboard\service\EmailServiceTest.java uses unchecked or unsafe operations.
+[INFO] /C:/Users/sowja/dashboard/backend/src/test/java/com/prashanth/dashboard/service/EmailServiceTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ dashboard ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest
+18:04:28.351 [main] WARN com.prashanth.dashboard.service.SentinelCoreAssistantService -- [SentinelCore Assistant] Database metric unavailable: DB Connection Timeout
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.193 s -- in com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  9.966 s
+[INFO] Finished at: 2026-08-17T18:04:28+05:30
+[INFO] ------------------------------------------------------------------------

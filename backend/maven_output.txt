@@ -1,0 +1,251 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< com.prashanth:dashboard >-----------------------
+[INFO] Building dashboard 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ dashboard ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ dashboard ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 74 source files with javac [debug parameters release 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ dashboard ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ dashboard ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 7 source files with javac [debug parameters release 17] to target\test-classes
+[WARNING] /C:/Users/sowja/dashboard/backend/src/test/java/com/prashanth/dashboard/controller/AIControllerTest.java:[36,6] org.springframework.boot.test.mock.mockito.MockBean in org.springframework.boot.test.mock.mockito has been deprecated and marked for removal
+[INFO] /C:/Users/sowja/dashboard/backend/src/test/java/com/prashanth/dashboard/service/EmailServiceTest.java: C:\Users\sowja\dashboard\backend\src\test\java\com\prashanth\dashboard\service\EmailServiceTest.java uses unchecked or unsafe operations.
+[INFO] /C:/Users/sowja/dashboard/backend/src/test/java/com/prashanth/dashboard/service/EmailServiceTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ dashboard ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.prashanth.dashboard.controller.AIControllerTest
+17:45:13.809 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.prashanth.dashboard.controller.AIControllerTest]: AIControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+17:45:14.141 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.prashanth.dashboard.DashboardApplication for test class com.prashanth.dashboard.controller.AIControllerTest
+17:45:14.369 [main] INFO org.springframework.boot.devtools.restart.RestartApplicationListener -- Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.7)
+
+2026-08-17T17:45:14.964+05:30  INFO 9708 --- [           main] c.p.d.controller.AIControllerTest        : Starting AIControllerTest using Java 17.0.11 with PID 9708 (started by sowja in C:\Users\sowja\dashboard\backend)
+2026-08-17T17:45:14.966+05:30  INFO 9708 --- [           main] c.p.d.controller.AIControllerTest        : No active profile set, falling back to 1 default profile: "default"
+2026-08-17T17:45:20.870+05:30  INFO 9708 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-08-17T17:45:20.871+05:30  INFO 9708 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-08-17T17:45:20.875+05:30  INFO 9708 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 4 ms
+2026-08-17T17:45:20.936+05:30  INFO 9708 --- [           main] c.p.d.controller.AIControllerTest        : Started AIControllerTest in 6.591 seconds (process running for 8.524)
+2026-08-17T17:45:21.826+05:30 ERROR 9708 --- [           main] c.p.dashboard.controller.AIController    : Unexpected AI chat failure (type=RuntimeException, durationMs=1).
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.443 s -- in com.prashanth.dashboard.controller.AIControllerTest
+[INFO] Running com.prashanth.dashboard.controller.AuditLogControllerTest
+2026-08-17T17:45:21.927+05:30  INFO 9708 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.prashanth.dashboard.controller.AuditLogControllerTest]: AuditLogControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-08-17T17:45:21.933+05:30  INFO 9708 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.prashanth.dashboard.DashboardApplication for test class com.prashanth.dashboard.controller.AuditLogControllerTest
+2026-08-17T17:45:21.949+05:30  INFO 9708 --- [           main] o.s.b.d.r.RestartApplicationListener     : Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.7)
+
+2026-08-17T17:45:22.019+05:30  INFO 9708 --- [           main] c.p.d.controller.AuditLogControllerTest  : Starting AuditLogControllerTest using Java 17.0.11 with PID 9708 (started by sowja in C:\Users\sowja\dashboard\backend)
+2026-08-17T17:45:22.021+05:30  INFO 9708 --- [           main] c.p.d.controller.AuditLogControllerTest  : No active profile set, falling back to 1 default profile: "default"
+2026-08-17T17:45:22.857+05:30  INFO 9708 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-08-17T17:45:22.984+05:30  INFO 9708 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 108 ms. Found 10 JPA repository interfaces.
+2026-08-17T17:45:24.125+05:30  INFO 9708 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-08-17T17:45:24.353+05:30  INFO 9708 --- [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.18.Final
+2026-08-17T17:45:24.447+05:30  INFO 9708 --- [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-08-17T17:45:24.886+05:30  INFO 9708 --- [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-08-17T17:45:24.967+05:30  INFO 9708 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-08-17T17:45:25.625+05:30  INFO 9708 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:testdb user=SA
+2026-08-17T17:45:25.632+05:30  INFO 9708 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-08-17T17:45:25.747+05:30  WARN 9708 --- [           main] org.hibernate.orm.deprecation            : HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-08-17T17:45:25.831+05:30  INFO 9708 --- [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 2.3.232
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-08-17T17:45:28.145+05:30  INFO 9708 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-08-17T17:45:28.296+05:30  INFO 9708 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-08-17T17:45:28.953+05:30  INFO 9708 --- [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-08-17T17:45:33.228+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : ========== BREVO EMAIL CONFIG ==========
+2026-08-17T17:45:33.234+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo sender name  : SentinelCore
+2026-08-17T17:45:33.234+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo sender email : mock-sender@sentinelcore.com
+2026-08-17T17:45:33.235+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo API key      : [CONFIGURED]
+2026-08-17T17:45:33.235+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : ========================================
+2026-08-17T17:45:33.554+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     : SentinelCore SecureOps: Performing Brevo email startup validation...
+2026-08-17T17:45:33.554+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     : Brevo configuration variables verified successfully.
+2026-08-17T17:45:33.555+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     :   Brevo sender name  : SentinelCore
+2026-08-17T17:45:33.555+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     :   Brevo sender email : mock-sender@sentinelcore.com
+2026-08-17T17:45:33.557+05:30  INFO 9708 --- [           main] c.p.d.s.OAuth2ClientRegistrationConfig   : Found Google OAuth2 client credentials in environment; creating ClientRegistrationRepository.
+2026-08-17T17:45:33.640+05:30  WARN 9708 --- [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-08-17T17:45:33.678+05:30  INFO 9708 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-08-17T17:45:35.072+05:30  INFO 9708 --- [           main] c.p.d.controller.AuditLogControllerTest  : Started AuditLogControllerTest in 13.122 seconds (process running for 22.659)
+[SentinelCore] Bootstrap admin created: admin / admin123
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.11 s -- in com.prashanth.dashboard.controller.AuditLogControllerTest
+[INFO] Running com.prashanth.dashboard.controller.SystemStabilizationTest
+2026-08-17T17:45:36.040+05:30  INFO 9708 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.prashanth.dashboard.controller.SystemStabilizationTest]: SystemStabilizationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-08-17T17:45:36.044+05:30  INFO 9708 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.prashanth.dashboard.DashboardApplication for test class com.prashanth.dashboard.controller.SystemStabilizationTest
+2026-08-17T17:45:36.050+05:30  INFO 9708 --- [           main] o.s.b.d.r.RestartApplicationListener     : Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.7)
+
+2026-08-17T17:45:36.086+05:30  INFO 9708 --- [           main] c.p.d.c.SystemStabilizationTest          : Starting SystemStabilizationTest using Java 17.0.11 with PID 9708 (started by sowja in C:\Users\sowja\dashboard\backend)
+2026-08-17T17:45:36.087+05:30  INFO 9708 --- [           main] c.p.d.c.SystemStabilizationTest          : No active profile set, falling back to 1 default profile: "default"
+2026-08-17T17:45:36.486+05:30  INFO 9708 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-08-17T17:45:36.519+05:30  INFO 9708 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 31 ms. Found 10 JPA repository interfaces.
+2026-08-17T17:45:36.944+05:30  INFO 9708 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 0 (http)
+2026-08-17T17:45:36.978+05:30  INFO 9708 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-08-17T17:45:36.980+05:30  INFO 9708 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.42]
+2026-08-17T17:45:37.115+05:30  INFO 9708 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-08-17T17:45:37.117+05:30  INFO 9708 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1027 ms
+2026-08-17T17:45:37.355+05:30  INFO 9708 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-08-17T17:45:37.367+05:30  INFO 9708 --- [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-08-17T17:45:37.412+05:30  INFO 9708 --- [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-08-17T17:45:37.415+05:30  INFO 9708 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Starting...
+2026-08-17T17:45:37.419+05:30  INFO 9708 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-2 - Added connection conn10: url=jdbc:h2:mem:testdb user=SA
+2026-08-17T17:45:37.419+05:30  INFO 9708 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Start completed.
+2026-08-17T17:45:37.422+05:30  WARN 9708 --- [           main] org.hibernate.orm.deprecation            : HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-08-17T17:45:37.424+05:30  INFO 9708 --- [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-2)']
+	Database driver: undefined/unknown
+	Database version: 2.3.232
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-08-17T17:45:37.672+05:30  INFO 9708 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-08-17T17:45:37.701+05:30  INFO 9708 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-08-17T17:45:38.058+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : ========== BREVO EMAIL CONFIG ==========
+2026-08-17T17:45:38.058+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo sender name  : SentinelCore
+2026-08-17T17:45:38.059+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo sender email : mock-sender@sentinelcore.com
+2026-08-17T17:45:38.059+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo API key      : [CONFIGURED]
+2026-08-17T17:45:38.059+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : ========================================
+2026-08-17T17:45:38.186+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     : SentinelCore SecureOps: Performing Brevo email startup validation...
+2026-08-17T17:45:38.186+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     : Brevo configuration variables verified successfully.
+2026-08-17T17:45:38.186+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     :   Brevo sender name  : SentinelCore
+2026-08-17T17:45:38.186+05:30  INFO 9708 --- [           main] c.p.dashboard.security.SmtpValidator     :   Brevo sender email : mock-sender@sentinelcore.com
+2026-08-17T17:45:38.188+05:30  INFO 9708 --- [           main] c.p.d.s.OAuth2ClientRegistrationConfig   : Found Google OAuth2 client credentials in environment; creating ClientRegistrationRepository.
+2026-08-17T17:45:38.269+05:30  WARN 9708 --- [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-08-17T17:45:38.297+05:30  INFO 9708 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-08-17T17:45:39.178+05:30  INFO 9708 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 65275 (http) with context path '/'
+2026-08-17T17:45:39.189+05:30  INFO 9708 --- [           main] c.p.d.c.SystemStabilizationTest          : Started SystemStabilizationTest in 3.139 seconds (process running for 26.776)
+2026-08-17T17:45:39.640+05:30  INFO 9708 --- [o-auto-1-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-08-17T17:45:39.640+05:30  INFO 9708 --- [o-auto-1-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-08-17T17:45:39.642+05:30  INFO 9708 --- [o-auto-1-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-08-17T17:45:39.796+05:30  INFO 9708 --- [           main] c.p.dashboard.controller.UserController  : Received registration request for username: securityenforced_1786968939793
+2026-08-17T17:45:39.943+05:30  INFO 9708 --- [           main] c.p.dashboard.controller.UserController  : User registered successfully: securityenforced_1786968939793
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.958 s -- in com.prashanth.dashboard.controller.SystemStabilizationTest
+[INFO] Running com.prashanth.dashboard.controller.UserControllerTest
+2026-08-17T17:45:40.004+05:30  INFO 9708 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.prashanth.dashboard.controller.UserControllerTest]: UserControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-08-17T17:45:40.007+05:30  INFO 9708 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.prashanth.dashboard.DashboardApplication for test class com.prashanth.dashboard.controller.UserControllerTest
+2026-08-17T17:45:40.057+05:30  INFO 9708 --- [           main] c.p.dashboard.controller.UserController  : Received registration request for username: testreguser_1786968940057
+2026-08-17T17:45:40.194+05:30  INFO 9708 --- [           main] c.p.dashboard.controller.UserController  : User registered successfully: testreguser_1786968940057
+2026-08-17T17:45:40.196+05:30  INFO 9708 --- [           main] c.p.dashboard.controller.UserController  : Received registration request for username: testreguser_1786968940057
+2026-08-17T17:45:40.206+05:30  WARN 9708 --- [           main] c.p.dashboard.controller.UserController  : Registration rejected for username testreguser_1786968940057: Username already exists: testreguser_1786968940057
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.238 s -- in com.prashanth.dashboard.controller.UserControllerTest
+[INFO] Running com.prashanth.dashboard.DashboardApplicationTests
+2026-08-17T17:45:40.262+05:30  INFO 9708 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.prashanth.dashboard.DashboardApplicationTests]: DashboardApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-08-17T17:45:40.295+05:30  INFO 9708 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.prashanth.dashboard.DashboardApplication for test class com.prashanth.dashboard.DashboardApplicationTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.097 s -- in com.prashanth.dashboard.DashboardApplicationTests
+[INFO] Running com.prashanth.dashboard.service.EmailServiceTest
+2026-08-17T17:45:41.039+05:30 ERROR 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo API client error (400 BAD_REQUEST): Bad Request — recipient='bad-email'
+2026-08-17T17:45:41.055+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo request: attaching 'weekly_report.pdf' (14 bytes)
+2026-08-17T17:45:41.056+05:30  INFO 9708 --- [           main] c.p.dashboard.service.EmailService       : Brevo: email delivered successfully to 'recipient@example.com'
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.720 s -- in com.prashanth.dashboard.service.EmailServiceTest
+[INFO] Running com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest
+2026-08-17T17:45:41.787+05:30  WARN 9708 --- [           main] c.p.d.s.SentinelCoreAssistantService     : [SentinelCore Assistant] Database metric unavailable: DB Connection Timeout
+[ERROR] Tests run: 19, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 0.783 s <<< FAILURE! -- in com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest
+[ERROR] com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest.testGuidedAssetCreationFlow -- Time elapsed: 0.012 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <CREATE_ASSET> but was: <ASSET_MANAGEMENT>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+	at com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest.testGuidedAssetCreationFlow(SentinelCoreAssistantServiceTest.java:298)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[ERROR] com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest.testChatMemoryContextIncidents -- Time elapsed: 0.005 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:31)
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:183)
+	at com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest.testChatMemoryContextIncidents(SentinelCoreAssistantServiceTest.java:287)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[ERROR] com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest.testSentinelCoreOverview -- Time elapsed: 0.002 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:31)
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:183)
+	at com.prashanth.dashboard.service.SentinelCoreAssistantServiceTest.testSentinelCoreOverview(SentinelCoreAssistantServiceTest.java:160)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   SentinelCoreAssistantServiceTest.testChatMemoryContextIncidents:287 expected: <true> but was: <false>
+[ERROR]   SentinelCoreAssistantServiceTest.testGuidedAssetCreationFlow:298 expected: <CREATE_ASSET> but was: <ASSET_MANAGEMENT>
+[ERROR]   SentinelCoreAssistantServiceTest.testSentinelCoreOverview:160 expected: <true> but was: <false>
+[INFO] 
+[ERROR] Tests run: 42, Failures: 3, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  39.723 s
+[INFO] Finished at: 2026-08-17T17:45:42+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.3:test (default-test) on project dashboard: There are test failures.
+[ERROR] 
+[ERROR] See C:\Users\sowja\dashboard\backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
