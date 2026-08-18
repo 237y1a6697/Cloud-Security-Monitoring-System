@@ -19,39 +19,50 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 /**
- * SentinelCore Internal Assistant — a fully deterministic, rule-based
- * assistant that answers questions about the SentinelCore SecureOps platform
- * using an internal knowledge base and live PostgreSQL data.
+ * SentinelCore Internal Assistant — a deterministic, rule-based assistant
+ * for SentinelCore platform queries, with Gemini AI as an intelligent fallback
+ * for questions outside the deterministic knowledge base.
  *
- * No external AI API. No API key. No network calls.
+ * Architecture:
+ * 1. All structured SentinelCore workflows (assets, incidents, etc.) are handled
+ *    by the rule engine — fast, deterministic, no external calls.
+ * 2. OUT_OF_SCOPE and UNKNOWN intents fall back to GeminiService (if configured).
+ * 3. The GEMINI_API_KEY is handled entirely in the backend — never exposed to frontend.
  */
 @Service
 public class SentinelCoreAssistantService {
 
     private static final Logger log = LoggerFactory.getLogger(SentinelCoreAssistantService.class);
 
-    private final AssetRepository        assetRepository;
-    private final IncidentRepository     incidentRepository;
+    private final AssetRepository         assetRepository;
+    private final IncidentRepository      incidentRepository;
     private final VulnerabilityRepository vulnerabilityRepository;
-    private final AlertRepository        alertRepository;
-    private final UserRepository         userRepository;
+    private final AlertRepository         alertRepository;
+    private final UserRepository          userRepository;
+    private final GeminiService           geminiService;
 
     public SentinelCoreAssistantService(AssetRepository assetRepository,
                                         IncidentRepository incidentRepository,
                                         VulnerabilityRepository vulnerabilityRepository,
                                         AlertRepository alertRepository,
-                                        UserRepository userRepository) {
-        this.assetRepository       = assetRepository;
-        this.incidentRepository    = incidentRepository;
+                                        UserRepository userRepository,
+                                        GeminiService geminiService) {
+        this.assetRepository         = assetRepository;
+        this.incidentRepository      = incidentRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
-        this.alertRepository        = alertRepository;
-        this.userRepository        = userRepository;
+        this.alertRepository         = alertRepository;
+        this.userRepository          = userRepository;
+        this.geminiService           = geminiService;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
     public boolean isConfigured() {
         return true;
+    }
+
+    private boolean isGeminiActive() {
+        return geminiService != null && geminiService.isConfigured();
     }
 
     /**
@@ -65,19 +76,8 @@ public class SentinelCoreAssistantService {
         try {
             String normalised = normalise(userMessage);
 
-            // Scope Check: Reject questions unrelated to SentinelCore
-            if (!isWithinSentinelCoreScope(normalised)) {
-                return new AssistantResult(
-                    "That question is outside my SentinelCore scope.\n\n" +
-                    "I can help you with the Dashboard, Assets, Incidents, Vulnerabilities, Compliance, Reports, and SentinelCore workflows.",
-                    getSuggestionsForGreetingAndHelp(currentPage),
-                    "OUT_OF_SCOPE",
-                    null,
-                    null
-                );
-            }
-
-            // Navigational Intents
+            // 1. Check if this is a navigational command for an active workflow.
+            // Navigational commands must always be handled by the deterministic wizard.
             if (isNavigational(normalised)) {
                 WorkflowContext ctx = getActiveWorkflow(history);
                 if (ctx != null) {
@@ -109,39 +109,85 @@ public class SentinelCoreAssistantService {
                         return renderWorkflowStep(ctx.workflow, prevStep);
                     }
                 } else {
-                    return new AssistantResult(
-                        "There is no active workflow to navigate. How can I help you today?",
-                        getSuggestionsForGreetingAndHelp(currentPage),
-                        "UNKNOWN",
-                        null,
-                        null
-                    );
+                    // No active workflow, but if Gemini is configured, it can handle conversational cancel/back/etc.
+                    if (!isGeminiActive()) {
+                        return new AssistantResult(
+                            "There is no active workflow to navigate. How can I help you today?",
+                            getSuggestionsForGreetingAndHelp(currentPage),
+                            "UNKNOWN",
+                            null,
+                            null
+                        );
+                    }
                 }
             }
 
-            // Resolve follow-up topics
+            // 2. Detect Intent (for workflow initiation or fallback triggers)
             String followUpTopic = resolveFollowUpTopic(normalised, history);
-
             Intent intent = detectIntent(normalised, followUpTopic, currentPage, currentRoute);
             log.debug("[SentinelCore Assistant] intent={} message='{}'", intent, userMessage);
 
-            String text = generateAnswer(intent, normalised, currentPage);
-            List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
-
-            // Set workflow step settings for Rich DTO if applicable
-            Integer step = null;
-            Integer totalSteps = null;
-            String intentStr = intent.name();
-
-            if (intent == Intent.CREATE_ASSET) {
-                step = 1;
-                totalSteps = 4;
-            } else if (intent == Intent.CREATE_INCIDENT) {
-                step = 1;
-                totalSteps = 4;
+            // 3. Intercept Workflow Initiation
+            // If the user matches a new workflow starter, route to the deterministic wizard.
+            if (intent == Intent.CREATE_ASSET || intent == Intent.CREATE_INCIDENT) {
+                String text = generateAnswer(intent, normalised, currentPage);
+                List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
+                return new AssistantResult(text, suggestions, intent.name(), 1, 4);
             }
 
-            return new AssistantResult(text, suggestions, intentStr, step, totalSteps);
+            // 4. Delegate to dynamic LLM (Gemini) if configured and not a workflow step
+            if (isGeminiActive()) {
+                log.debug("[SentinelCore Assistant] Delegating query to Gemini API: '{}'", userMessage);
+
+                // Build dynamic system context with live PostgreSQL numbers
+                String assetCount = safeCount(() -> assetRepository.count());
+                String activeIncidents = safeCount(() -> incidentRepository.countActiveIncidents());
+                String openVulns = safeCount(() -> vulnerabilityRepository.count());
+                String criticalVulns = safeCount(() -> vulnerabilityRepository.countCriticalVulnerabilities());
+                String activeAlerts = safeCount(() -> alertRepository.count());
+                String registeredUsers = safeCount(() -> userRepository.count());
+
+                String systemContext = String.format(
+                    "Current SentinelCore Live Database State (obtained directly from PostgreSQL):\n" +
+                    "- Total Assets: %s\n" +
+                    "- Active/Unresolved Incidents: %s\n" +
+                    "- Total Vulnerabilities: %s\n" +
+                    "- Critical Vulnerabilities (CVSS >= 7.0): %s\n" +
+                    "- Active Security Alerts: %s\n" +
+                    "- Registered Users: %s\n\n" +
+                    "Additionally, the user is currently on the '%s' module, path: '%s'.",
+                    assetCount, activeIncidents, openVulns, criticalVulns, activeAlerts, registeredUsers,
+                    currentPage, currentRoute
+                );
+
+                String geminiResponse = geminiService.chat(userMessage, history, systemContext);
+                List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
+
+                return new AssistantResult(
+                    geminiResponse,
+                    suggestions,
+                    "GEMINI_RESPONSE",
+                    null,
+                    null
+                );
+            }
+
+            // 5. Fallback: Pure Rule-Based Engine (when Gemini is not configured / tests run)
+            if (!isWithinSentinelCoreScope(normalised)) {
+                return new AssistantResult(
+                    "That question is outside my SentinelCore scope.\n\n" +
+                    "I can help you with the Dashboard, Assets, Incidents, Vulnerabilities, Compliance, Reports, and SentinelCore workflows.",
+                    getSuggestionsForGreetingAndHelp(currentPage),
+                    "OUT_OF_SCOPE",
+                    null,
+                    null
+                );
+            }
+
+            String text = generateAnswer(intent, normalised, currentPage);
+            List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
+            return new AssistantResult(text, suggestions, intent.name(), null, null);
+
         } catch (Exception ex) {
             log.error("[SentinelCore Assistant] Unexpected error processing chat", ex);
             return new AssistantResult("Sorry, I couldn't process that request. Please try again.", List.of());
