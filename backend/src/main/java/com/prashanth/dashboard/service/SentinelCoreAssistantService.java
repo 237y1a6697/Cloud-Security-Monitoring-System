@@ -20,14 +20,14 @@ import java.util.Collections;
 
 /**
  * SentinelCore Internal Assistant — a deterministic, rule-based assistant
- * for SentinelCore platform queries, with Gemini AI as an intelligent fallback
+ * for SentinelCore platform queries, with Grok AI as an intelligent fallback
  * for questions outside the deterministic knowledge base.
  *
  * Architecture:
  * 1. All structured SentinelCore workflows (assets, incidents, etc.) are handled
  *    by the rule engine — fast, deterministic, no external calls.
- * 2. OUT_OF_SCOPE and UNKNOWN intents fall back to GeminiService (if configured).
- * 3. The GEMINI_API_KEY is handled entirely in the backend — never exposed to frontend.
+ * 2. OUT_OF_SCOPE and UNKNOWN intents fall back to GrokService (if configured).
+ * 3. The XAI_API_KEY is handled entirely in the backend — never exposed to frontend.
  */
 @Service
 public class SentinelCoreAssistantService {
@@ -39,20 +39,20 @@ public class SentinelCoreAssistantService {
     private final VulnerabilityRepository vulnerabilityRepository;
     private final AlertRepository         alertRepository;
     private final UserRepository          userRepository;
-    private final GeminiService           geminiService;
+    private final GrokService             grokService;
 
     public SentinelCoreAssistantService(AssetRepository assetRepository,
                                         IncidentRepository incidentRepository,
                                         VulnerabilityRepository vulnerabilityRepository,
                                         AlertRepository alertRepository,
                                         UserRepository userRepository,
-                                        GeminiService geminiService) {
+                                        GrokService grokService) {
         this.assetRepository         = assetRepository;
         this.incidentRepository      = incidentRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.alertRepository         = alertRepository;
         this.userRepository          = userRepository;
-        this.geminiService           = geminiService;
+        this.grokService             = grokService;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ public class SentinelCoreAssistantService {
         return true;
     }
 
-    private boolean isGeminiActive() {
-        return geminiService != null && geminiService.isConfigured();
+    private boolean isGrokActive() {
+        return grokService != null && grokService.isConfigured();
     }
 
     /**
@@ -109,8 +109,8 @@ public class SentinelCoreAssistantService {
                         return renderWorkflowStep(ctx.workflow, prevStep);
                     }
                 } else {
-                    // No active workflow, but if Gemini is configured, it can handle conversational cancel/back/etc.
-                    if (!isGeminiActive()) {
+                    // No active workflow, but if Grok is configured, it can handle conversational cancel/back/etc.
+                    if (!isGrokActive()) {
                         return new AssistantResult(
                             "There is no active workflow to navigate. How can I help you today?",
                             getSuggestionsForGreetingAndHelp(currentPage),
@@ -135,9 +135,9 @@ public class SentinelCoreAssistantService {
                 return new AssistantResult(text, suggestions, intent.name(), 1, 4);
             }
 
-            // 4. Delegate to dynamic LLM (Gemini) if configured and not a workflow step
-            if (isGeminiActive()) {
-                log.debug("[SentinelCore Assistant] Delegating query to Gemini API: '{}'", userMessage);
+            // 4. Delegate to dynamic LLM (Grok) if configured and not a workflow step
+            if (isGrokActive()) {
+                log.debug("[SentinelCore Assistant] Delegating query to Grok API: '{}'", userMessage);
 
                 // Build dynamic system context with live PostgreSQL numbers
                 String assetCount = safeCount(() -> assetRepository.count());
@@ -160,19 +160,19 @@ public class SentinelCoreAssistantService {
                     currentPage, currentRoute
                 );
 
-                String geminiResponse = geminiService.chat(userMessage, history, systemContext);
+                String grokResponse = grokService.chat(userMessage, history, systemContext);
                 List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
 
                 return new AssistantResult(
-                    geminiResponse,
+                    grokResponse,
                     suggestions,
-                    "GEMINI_RESPONSE",
+                    "GROK_RESPONSE",
                     null,
                     null
                 );
             }
 
-            // 5. Fallback: Pure Rule-Based Engine (when Gemini is not configured / tests run)
+            // 5. Fallback: Pure Rule-Based Engine (when Grok is not configured / tests run)
             if (!isWithinSentinelCoreScope(normalised)) {
                 return new AssistantResult(
                     "That question is outside my SentinelCore scope.\n\n" +

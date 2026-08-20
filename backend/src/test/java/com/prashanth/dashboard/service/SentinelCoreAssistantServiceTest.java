@@ -29,6 +29,7 @@ class SentinelCoreAssistantServiceTest {
     @Mock private VulnerabilityRepository vulnerabilityRepository;
     @Mock private AlertRepository alertRepository;
     @Mock private UserRepository userRepository;
+    @Mock private GrokService grokService;
 
     @InjectMocks private SentinelCoreAssistantService assistantService;
 
@@ -341,4 +342,16 @@ class SentinelCoreAssistantServiceTest {
         assertEquals("CANCEL_WORKFLOW", resCancel.intent());
         assertTrue(resCancel.text().contains("cancelled"));
     }
+
+    @Test
+    void testFallbackToGrokWhenActive() {
+        when(grokService.isConfigured()).thenReturn(true);
+        when(grokService.chat(anyString(), any(), anyString())).thenReturn("Grok response text");
+
+        AssistantResult result = assistantService.chat("some unrecognized question?", null, "Dashboard", "/");
+        assertNotNull(result);
+        assertEquals("GROK_RESPONSE", result.intent());
+        assertEquals("Grok response text", result.text());
+    }
 }
+
