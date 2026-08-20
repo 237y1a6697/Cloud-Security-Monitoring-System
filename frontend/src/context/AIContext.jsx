@@ -7,7 +7,7 @@ export const AIContext = createContext(null);
 const WELCOME_MESSAGE = {
     id: 'welcome-msg',
     role: 'assistant',
-    content: "👋 Welcome to SentinelCore!\n\nI'm your SentinelCore Internal Assistant. I can help you understand your security operations dashboard and SentinelCore modules.\n\nWhat would you like to explore?",
+    content: "👋 Welcome to CSMS-IMA!\n\nI'm your Cloud Security Monitoring System AI Assistant. I can help you understand your security operations dashboard and all platform modules.\n\nWhat would you like to explore?",
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     suggestions: [
         "Explain Dashboard",
@@ -22,7 +22,7 @@ const WELCOME_MESSAGE = {
 export function AIProvider({ children }) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState(() => {
-        const saved = sessionStorage.getItem('sentinelcore_ai_chat');
+        const saved = sessionStorage.getItem('csmsima_ai_chat');
         return saved ? JSON.parse(saved) : [WELCOME_MESSAGE];
     });
     const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export function AIProvider({ children }) {
 
     // Persist messages to session storage
     useEffect(() => {
-        sessionStorage.setItem('sentinelcore_ai_chat', JSON.stringify(messages));
+        sessionStorage.setItem('csmsima_ai_chat', JSON.stringify(messages));
     }, [messages]);
 
     const toggleOpen = useCallback(() => setIsOpen(prev => !prev), []);
@@ -100,7 +100,7 @@ export function AIProvider({ children }) {
             const botMsg = {
                 id: Date.now() + '-bot',
                 role: 'assistant',
-                content: "I'm having trouble connecting to the SentinelCore SecureOps security brain right now. Please ensure the backend server is running and try again.",
+                content: "I'm having trouble connecting to the CSMS-IMA security brain right now. Please ensure the backend server is running and try again.",
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 suggestions: []
             };

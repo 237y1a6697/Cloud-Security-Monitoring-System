@@ -57,7 +57,7 @@ export default function AIChatWindow() {
                         </svg>
                     </div>
                     <div className="ai-title-group">
-                        <h3>SentinelCore AI Assistant</h3>
+                        <h3>CSMS-IMA AI Assistant</h3>
                         <p style={{ margin: 0, fontSize: '0.64rem', color: 'var(--text-muted)' }}>
                             Active Module: <strong style={{ color: 'var(--highlight-blue)' }}>{currentPage || 'Dashboard'}</strong>
                         </p>

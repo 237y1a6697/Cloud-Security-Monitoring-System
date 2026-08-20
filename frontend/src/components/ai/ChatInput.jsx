@@ -34,7 +34,7 @@ export default function ChatInput({ onSendMessage, disabled }) {
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask SentinelCore Assistant..."
+                placeholder="Ask CSMS-IMA Assistant..."
                 rows={1}
                 disabled={disabled}
                 aria-label="Chat input message"
