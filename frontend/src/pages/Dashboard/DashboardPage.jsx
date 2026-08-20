@@ -128,7 +128,7 @@ export default function DashboardPage() {
         <DashboardLayout>
             {/* Header */}
             <section className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15, marginBottom: 20 }}>
-                <h1>SentinelCore SOC Dashboard</h1>
+                <h1>Cloud Security Monitoring System with Incident Management Assistance</h1>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', background: 'var(--bg-inset)', padding: '8px 15px', borderRadius: 6, border: '1px solid var(--border-color)' }}>
                     <i className="ph ph-user" style={{ verticalAlign: 'middle', marginRight: 4 }} />
                     <strong>User:</strong> {user?.username || 'Viewer'} &nbsp;|&nbsp;

@@ -296,7 +296,7 @@ export default function Navbar() {
             {/* Brand section — mirrors .brand-section */}
             <div className="brand-section">
                 <img src={logo} alt="Logo" className="brand-logo" />
-                <span className="brand-name">CSMS-IMA</span>
+                <span className="brand-name">Cloud Security Monitoring System with Incident Management Assistance</span>
             </div>
 
             {/* Global search — mirrors .global-search-container */}
