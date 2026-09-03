@@ -112,6 +112,7 @@
     flex-direction: column;
     overflow: hidden;
     font-family: inherit;
+    color: #1a1f2e;
     animation: slideDownFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -151,10 +152,12 @@
 .profile-detail-name {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text-primary, #1a1f2e);
+    color: #1a1f2e !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin: 0;
+    padding: 0;
 }
 
 .profile-detail-email {
