@@ -178,9 +178,9 @@ public class SecurityConfig {
             );
 
         // Google OAuth2 login — only enabled when credentials are configured on Render.
-        // When GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are absent, this block is skipped
-        // and the app runs with username/password login only (no startup crash).
-        if (clientRegistrationRepository != null) {
+        // When GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are absent, the repository is empty,
+        // and the app runs with username/password login only.
+        if (clientRegistrationRepository != null && clientRegistrationRepository.findByRegistrationId("google") != null) {
             http.oauth2Login(oauth2 -> oauth2
                 .successHandler(oauth2SuccessHandler())
             );

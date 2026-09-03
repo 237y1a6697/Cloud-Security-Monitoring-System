@@ -71,11 +71,18 @@ public class OAuth2ClientRegistrationConfig {
         }
 
         // Credentials not set — Google login disabled.
-        // Returns null; SecurityConfig checks isGoogleOAuth2Enabled() before calling oauth2Login().
+        // Returns an empty repository instead of null. Spring Security's OAuth2 AuthorizedClientManager
+        // strictly requires a bean of this type to be present, otherwise application startup crashes.
         logger.warn("Google OAuth2 credentials are NOT configured. "
             + "Google login is DISABLED. Application will start with username/password login only. "
             + "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on Render to enable Google login.");
-        return null;
+        
+        return new ClientRegistrationRepository() {
+            @Override
+            public ClientRegistration findByRegistrationId(String registrationId) {
+                return null;
+            }
+        };
     }
 
     /**
@@ -84,6 +91,6 @@ public class OAuth2ClientRegistrationConfig {
      */
     public boolean isGoogleConfigured(Environment env) {
         ClientRegistrationRepository repo = clientRegistrationRepository(env);
-        return repo != null;
+        return repo.findByRegistrationId("google") != null;
     }
 }
