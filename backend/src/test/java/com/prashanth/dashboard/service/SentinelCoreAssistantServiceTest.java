@@ -29,7 +29,7 @@ class SentinelCoreAssistantServiceTest {
     @Mock private VulnerabilityRepository vulnerabilityRepository;
     @Mock private AlertRepository alertRepository;
     @Mock private UserRepository userRepository;
-    @Mock private GrokService grokService;
+    @Mock private GeminiService geminiService;
 
     @InjectMocks private SentinelCoreAssistantService assistantService;
 
@@ -344,14 +344,14 @@ class SentinelCoreAssistantServiceTest {
     }
 
     @Test
-    void testFallbackToGrokWhenActive() {
-        when(grokService.isConfigured()).thenReturn(true);
-        when(grokService.chat(anyString(), any(), anyString())).thenReturn("Grok response text");
+    void testFallbackToGeminiWhenActive() {
+        when(geminiService.isConfigured()).thenReturn(true);
+        when(geminiService.chat(anyString(), any(), anyString())).thenReturn("Gemini response text");
 
         AssistantResult result = assistantService.chat("some unrecognized question?", null, "Dashboard", "/");
         assertNotNull(result);
-        assertEquals("GROK_RESPONSE", result.intent());
-        assertEquals("Grok response text", result.text());
+        assertEquals("GEMINI_RESPONSE", result.intent());
+        assertEquals("Gemini response text", result.text());
     }
 }
 
