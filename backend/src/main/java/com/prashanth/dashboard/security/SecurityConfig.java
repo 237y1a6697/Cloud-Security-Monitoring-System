@@ -25,11 +25,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import com.prashanth.dashboard.repository.UserRepository;
 import com.prashanth.dashboard.repository.RoleRepository;
 import com.prashanth.dashboard.repository.AuditLogRepository;
 import com.prashanth.dashboard.model.AuditLog;
+
 
 @Configuration
 @EnableWebSecurity
@@ -48,6 +51,13 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AuditLogRepository auditLogRepository;
+
+    /**
+     * Injected from OAuth2ClientRegistrationConfig — may be null when Google credentials
+     * are not configured. Used to conditionally enable oauth2Login.
+     */
+    @Autowired(required = false)
+    private ClientRegistrationRepository clientRegistrationRepository;
 
     public SecurityConfig(CustomUserDetailsService userDetailsService,
                           UserRepository userRepository,
@@ -136,9 +146,6 @@ public class SecurityConfig {
                 .failureHandler(failureHandler())
                 .permitAll()
             )
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler(oauth2SuccessHandler())
-            )
             // FIX: wire remember-me to the named bean so cookie attributes are correct
             .rememberMe(remember -> remember
                 .rememberMeServices(rememberMeServices())
@@ -169,6 +176,15 @@ public class SecurityConfig {
                     response.getWriter().write("{\"error\": \"403 Access Denied — insufficient permissions\"}");
                 })
             );
+
+        // Google OAuth2 login — only enabled when credentials are configured on Render.
+        // When GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are absent, this block is skipped
+        // and the app runs with username/password login only (no startup crash).
+        if (clientRegistrationRepository != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                .successHandler(oauth2SuccessHandler())
+            );
+        }
 
         return http.build();
     }

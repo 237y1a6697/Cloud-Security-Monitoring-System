@@ -11,34 +11,56 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 
+/**
+ * OAuth2ClientRegistrationConfig
+ *
+ * Registers a ClientRegistrationRepository bean for Google OAuth2 login.
+ *
+ * DESIGN: Google credentials are OPTIONAL.
+ *  - When GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are present → Google OAuth2 is enabled.
+ *  - When credentials are absent → a null bean is registered so that SecurityConfig can
+ *    detect this and skip the .oauth2Login() configuration entirely, allowing the app to
+ *    start normally using username/password login only.
+ *
+ * This prevents startup crashes when operators have not configured OAuth2.
+ */
 @Configuration
 public class OAuth2ClientRegistrationConfig {
+
     private static final Logger logger = LoggerFactory.getLogger(OAuth2ClientRegistrationConfig.class);
 
-    @Bean
-    @ConditionalOnMissingBean(ClientRegistrationRepository.class)
+    /**
+     * Returns a ClientRegistrationRepository if Google credentials are present,
+     * or null if they are not. SecurityConfig checks for null to decide whether
+     * to enable oauth2Login.
+     *
+     * NOTE: This bean is nullable — callers must null-check it.
+     */
+    @Bean(name = "googleClientRegistrationRepository")
     public ClientRegistrationRepository clientRegistrationRepository(Environment env) {
-        // Support both Spring-style env names and short GOOGLE_* names for operator convenience
-        // Check Spring property-style keys first (dot-separated), then env-style uppercase keys, then short GOOGLE_* fallbacks.
+
+        // Support both Spring-style property names and short GOOGLE_* shortcut names
         String clientId = env.getProperty("spring.security.oauth2.client.registration.google.client-id");
         String clientSecret = env.getProperty("spring.security.oauth2.client.registration.google.client-secret");
 
-        if ((clientId == null || clientId.isBlank())) {
+        if (clientId == null || clientId.isBlank()) {
             clientId = env.getProperty("SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID");
         }
-        if ((clientSecret == null || clientSecret.isBlank())) {
+        if (clientSecret == null || clientSecret.isBlank()) {
             clientSecret = env.getProperty("SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET");
         }
-
-        if ((clientId == null || clientId.isBlank()) && env.getProperty("GOOGLE_CLIENT_ID") != null) {
+        if (clientId == null || clientId.isBlank()) {
             clientId = env.getProperty("GOOGLE_CLIENT_ID");
         }
-        if ((clientSecret == null || clientSecret.isBlank()) && env.getProperty("GOOGLE_CLIENT_SECRET") != null) {
+        if (clientSecret == null || clientSecret.isBlank()) {
             clientSecret = env.getProperty("GOOGLE_CLIENT_SECRET");
         }
 
-        if (clientId != null && !clientId.isBlank() && clientSecret != null && !clientSecret.isBlank()) {
-            logger.info("Found Google OAuth2 client credentials in environment; creating ClientRegistrationRepository.");
+        boolean configured = clientId != null && !clientId.isBlank()
+                          && clientSecret != null && !clientSecret.isBlank();
+
+        if (configured) {
+            logger.info("Google OAuth2 credentials found — Google login is ENABLED.");
             ClientRegistration googleRegistration = CommonOAuth2Provider.GOOGLE
                     .getBuilder("google")
                     .clientId(clientId)
@@ -48,14 +70,20 @@ public class OAuth2ClientRegistrationConfig {
             return new InMemoryClientRegistrationRepository(googleRegistration);
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("Google OAuth2 client credentials are not configured. Set environment variables:\n");
-        sb.append("  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID\n");
-        sb.append("  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET\n");
-        sb.append("Or set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET as shortcuts.\n");
-        logger.error(sb.toString());
+        // Credentials not set — Google login disabled.
+        // Returns null; SecurityConfig checks isGoogleOAuth2Enabled() before calling oauth2Login().
+        logger.warn("Google OAuth2 credentials are NOT configured. "
+            + "Google login is DISABLED. Application will start with username/password login only. "
+            + "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on Render to enable Google login.");
+        return null;
+    }
 
-        // Fail fast with a clear error so operators add the missing secrets. SecurityConfig requires this bean.
-        throw new IllegalStateException(sb.toString());
+    /**
+     * Convenience flag for SecurityConfig to check whether to enable oauth2Login.
+     * @return true if Google credentials are configured
+     */
+    public boolean isGoogleConfigured(Environment env) {
+        ClientRegistrationRepository repo = clientRegistrationRepository(env);
+        return repo != null;
     }
 }
