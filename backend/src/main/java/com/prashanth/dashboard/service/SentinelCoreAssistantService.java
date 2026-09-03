@@ -26,8 +26,8 @@ import java.util.Collections;
  * Architecture:
  * 1. All structured SentinelCore workflows (assets, incidents, etc.) are handled
  *    by the rule engine — fast, deterministic, no external calls.
- * 2. OUT_OF_SCOPE and UNKNOWN intents fall back to GrokService (if configured).
- * 3. The XAI_API_KEY is handled entirely in the backend — never exposed to frontend.
+ * 2. OUT_OF_SCOPE and UNKNOWN intents fall back to GeminiService (if configured).
+ * 3. The GEMINI_API_KEY is handled entirely in the backend — never exposed to frontend.
  */
 @Service
 public class SentinelCoreAssistantService {
@@ -39,20 +39,20 @@ public class SentinelCoreAssistantService {
     private final VulnerabilityRepository vulnerabilityRepository;
     private final AlertRepository         alertRepository;
     private final UserRepository          userRepository;
-    private final GrokService             grokService;
+    private final GeminiService           geminiService;
 
     public SentinelCoreAssistantService(AssetRepository assetRepository,
                                         IncidentRepository incidentRepository,
                                         VulnerabilityRepository vulnerabilityRepository,
                                         AlertRepository alertRepository,
                                         UserRepository userRepository,
-                                        GrokService grokService) {
+                                        GeminiService geminiService) {
         this.assetRepository         = assetRepository;
         this.incidentRepository      = incidentRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.alertRepository         = alertRepository;
         this.userRepository          = userRepository;
-        this.grokService             = grokService;
+        this.geminiService           = geminiService;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ public class SentinelCoreAssistantService {
         return true;
     }
 
-    private boolean isGrokActive() {
-        return grokService != null && grokService.isConfigured();
+    private boolean isExternalApiActive() {
+        return geminiService != null && geminiService.isConfigured();
     }
 
     /**
@@ -109,8 +109,8 @@ public class SentinelCoreAssistantService {
                         return renderWorkflowStep(ctx.workflow, prevStep);
                     }
                 } else {
-                    // No active workflow, but if Grok is configured, it can handle conversational cancel/back/etc.
-                    if (!isGrokActive()) {
+                    // No active workflow, but if Gemini is configured, it can handle conversational cancel/back/etc.
+                    if (!isExternalApiActive()) {
                         return new AssistantResult(
                             "There is no active workflow to navigate. How can I help you today?",
                             getSuggestionsForGreetingAndHelp(currentPage),
@@ -136,7 +136,7 @@ public class SentinelCoreAssistantService {
             }
 
             // 4. Delegate to dynamic LLM (Grok/External) if configured AND the intent is UNKNOWN
-            if (isGrokActive() && intent == Intent.UNKNOWN) {
+            if (isExternalApiActive() && intent == Intent.UNKNOWN) {
                 log.debug("[SentinelCore Assistant] Delegating UNKNOWN query to LLM API: '{}'", userMessage);
 
                 // Build dynamic system context with live PostgreSQL numbers
@@ -160,19 +160,19 @@ public class SentinelCoreAssistantService {
                     currentPage, currentRoute
                 );
 
-                String grokResponse = grokService.chat(userMessage, history, systemContext);
+                String geminiResponse = geminiService.chat(userMessage, history, systemContext);
                 List<String> suggestions = getSuggestionsForIntent(intent, currentPage);
 
                 return new AssistantResult(
-                    grokResponse,
+                    geminiResponse,
                     suggestions,
-                    "GROK_RESPONSE",
+                    "GEMINI_RESPONSE",
                     null,
                     null
                 );
             }
 
-            // 5. Fallback: Pure Rule-Based Engine (when Grok is not configured / tests run)
+            // 5. Fallback: Pure Rule-Based Engine (when Gemini is not configured / tests run)
             if (!isWithinSentinelCoreScope(normalised)) {
                 return new AssistantResult(
                     "That question is outside my SentinelCore scope.\n\n" +
