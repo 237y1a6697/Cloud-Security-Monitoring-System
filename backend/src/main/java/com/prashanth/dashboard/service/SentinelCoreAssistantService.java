@@ -135,9 +135,9 @@ public class SentinelCoreAssistantService {
                 return new AssistantResult(text, suggestions, intent.name(), 1, 4);
             }
 
-            // 4. Delegate to dynamic LLM (Grok) if configured and not a workflow step
-            if (isGrokActive()) {
-                log.debug("[SentinelCore Assistant] Delegating query to Grok API: '{}'", userMessage);
+            // 4. Delegate to dynamic LLM (Grok/External) if configured AND the intent is UNKNOWN
+            if (isGrokActive() && intent == Intent.UNKNOWN) {
+                log.debug("[SentinelCore Assistant] Delegating UNKNOWN query to LLM API: '{}'", userMessage);
 
                 // Build dynamic system context with live PostgreSQL numbers
                 String assetCount = safeCount(() -> assetRepository.count());
