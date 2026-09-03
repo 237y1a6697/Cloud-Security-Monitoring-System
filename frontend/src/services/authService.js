@@ -82,6 +82,29 @@ const authService = {
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
         }),
+
+    /**
+     * Initiates a password reset — sends a reset email if the account exists.
+     * Always returns a generic message regardless (anti-enumeration).
+     * @param {string} email
+     */
+    forgotPassword: (email) =>
+        axiosInstance.post('/api/auth/forgot-password', { email }, {
+            withCredentials: true,
+            headers: { 'Content-Type': 'application/json' },
+        }),
+
+    /**
+     * Resets the user's password using the token from the email link.
+     * @param {string} token - raw token from URL query param
+     * @param {string} newPassword
+     * @param {string} confirmPassword
+     */
+    resetPassword: (token, newPassword, confirmPassword) =>
+        axiosInstance.post('/api/auth/reset-password', { token, newPassword, confirmPassword }, {
+            withCredentials: true,
+            headers: { 'Content-Type': 'application/json' },
+        }),
 };
 
 export default authService;

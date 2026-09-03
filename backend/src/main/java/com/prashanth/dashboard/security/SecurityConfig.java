@@ -122,6 +122,8 @@ public class SecurityConfig {
                 .requestMatchers("/login", "/register", "/api/users/register", "/access-denied", "/error", "/login/oauth2/**", "/oauth2/**").permitAll()
                 // FIX: Expose root, /actuator/health and /health so Render health checks pass
                 .requestMatchers("/", "/actuator/health", "/health").permitAll()
+                // Password-reset endpoints — publicly accessible (user is not authenticated)
+                .requestMatchers("/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                 .requestMatchers("/admin/**").hasAnyRole("SUPER_ADMIN", "ADMIN")
                 .anyRequest().authenticated()
             )

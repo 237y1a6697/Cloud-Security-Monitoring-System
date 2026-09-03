@@ -38,6 +38,7 @@ export default function LoginPage() {
     const hasLogout = searchParams.has('logout');
     const hasAccess = searchParams.has('access');
     const hasExpired = searchParams.has('expired');
+    const hasReset = searchParams.has('reset');
 
     // If session is already active, skip to dashboard
     useEffect(() => {
@@ -108,6 +109,9 @@ export default function LoginPage() {
                 {hasLogout && (
                     <div className="alert alert-success">👋 You have been signed out successfully.</div>
                 )}
+                {hasReset && (
+                    <div className="alert alert-success">✅ Password reset successfully! You can now log in with your new password.</div>
+                )}
                 {hasAccess && (
                     <div className="alert alert-info">🚫 Access denied. You don&apos;t have permission for that resource.</div>
                 )}
@@ -155,7 +159,7 @@ export default function LoginPage() {
                             />
                             Keep me signed in
                         </label>
-                        <a href="#" className="forgot-link">Forgot password?</a>
+                        <Link to="/forgot-password" className="forgot-link">Forgot password?</Link>
                     </div>
 
                     <button type="submit" className="btn-primary" id="loginBtn" disabled={loading}>

@@ -14,6 +14,8 @@ import { useAuth } from './context/AuthContext.jsx';
 // ── Page Imports ─────────────────────────────────────────────────────────────
 import LoginPage from './pages/Login/LoginPage.jsx';
 import RegisterPage from './pages/Register/RegisterPage.jsx';
+import ForgotPasswordPage from './pages/ForgotPassword/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPassword/ResetPasswordPage.jsx';
 import DashboardPage from './pages/Dashboard/DashboardPage.jsx';
 import InfrastructurePage from './pages/Infrastructure/InfrastructurePage.jsx';
 import AssetsPage from './pages/Assets/AssetsPage.jsx';
@@ -72,6 +74,9 @@ export default function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+      {/* Password reset — always public, no redirect-if-authenticated */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* ── Dashboard ─────────────────────────────────────────────────────── */}
       <Route
