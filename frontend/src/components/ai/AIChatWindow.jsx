@@ -106,14 +106,14 @@ export default function AIChatWindow() {
 
             {/* Quick Actions Panel */}
             <div style={{ display: 'flex', gap: 6, padding: '8px 12px', background: 'var(--bg-inset)', borderTop: '1px solid var(--border-color)', overflowX: 'auto' }}>
+                <button className="btn-sm" onClick={() => sendMessage('Create new asset')} style={{ padding: '4px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                    <i className="ph ph-cube" /> Create Asset
+                </button>
+                <button className="btn-sm" onClick={() => sendMessage('Report an incident')} style={{ padding: '4px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                    <i className="ph ph-warning" /> Create Incident
+                </button>
                 <button className="btn-sm" onClick={() => handleQuickAction('Lock Session')} style={{ padding: '4px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}>
                     <i className="ph ph-lock" /> Lock Console
-                </button>
-                <button className="btn-sm" onClick={() => handleQuickAction('Run Diagnostics')} style={{ padding: '4px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                    <i className="ph ph-heartbeat" /> Diagnostics
-                </button>
-                <button className="btn-sm" onClick={() => handleQuickAction('Restart Telemetry')} style={{ padding: '4px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                    <i className="ph ph-arrows-clockwise" /> Reset Simulator
                 </button>
             </div>
 
