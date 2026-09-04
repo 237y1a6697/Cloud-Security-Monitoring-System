@@ -23,7 +23,7 @@ SentinelCore-SecureOps is a unified Security Operations Center (SOC) platform de
 
 Modern security monitoring requires orchestrating diverse domains: host inventories, incident response cycles, vulnerability databases, and regulatory compliance scopes. Traditionally, security teams have had to navigate independent, isolated tools to obtain a holistic view of the organization's threat posture, significantly increasing operational overhead and slowing incident remediation times.
 
-SentinelCore-SecureOps solves this fragmentation by consolidating essential SecOps disciplines into a centralized operational interface. It replaces disparate spreadsheets and basic CRUD tools with a dedicated, authorization-driven platform where analysts, engineers, and auditors can collaborate on incidents, enforce policy standards, and maintain strict, auditable trails of sensitive operations.
+SentinelCore-SecureOps solves this fragmentation by consolidating essential SecOps disciplines into a centralized operational interface. It replaces disparate spreadsheets and basic CRUD tools with a dedicated, authorization-driven platform where analysts, engineers, and auditors can collaborate on incidents, enforce policy standards, and maintain strict trails of sensitive operations.
 
 ---
 
@@ -52,33 +52,26 @@ User authentication is managed comprehensively by **Spring Security 6**.
 - **Credentials & Hashing:** Utilizes traditional Username/Password form login protected by industry-standard `BCrypt` password hashing.
 - **Sessions:** Relies on stateful, authenticated runtime sessions generating secure `JSESSIONID` cookies.
 - **Security Posture:** Cookies are strictly managed utilizing `HttpOnly`, `Secure`, and cross-site configuring via `SameSite=None` attributes.
-- **Failures:** Invalid credentials yield standard `401 Unauthorized` HTTP responses in JSON formats, bypassing default HTML redirect behaviors typical in legacy applications.
 
 ### Authorization (RBAC)
 The application enforces strict **Role-Based Access Control (RBAC)** across the platform. While authentication determines _who_ the user is, authorization dictates exactly _what_ that user is allowed to do.
 
-The platform defines **20 distinct permissions** mapped across **9 hierarchical operation roles**.
+The platform relies on **20 distinct permissions** spanning endpoints and operations globally.
 
-### Roles
-The following roles define operational thresholds within the platform:
-* `ROLE_SUPER_ADMIN` - Complete system override and administration access.
-* `ROLE_ADMIN` - Broad administrative rights targeting organizational administration.
-* `ROLE_SOC_MANAGER` - Incident oversight and reporting access without raw infrastructure deletion.
-* `ROLE_SECURITY_ANALYST` - Specialized role for triaging incidents and viewing infrastructure endpoints.
-* `ROLE_INCIDENT_RESPONDER` - Targeted incident resolution rights.
-* `ROLE_INFRA_ENGINEER` - Asset oversight targeting host systems operations.
-* `ROLE_DEVSECOPS` - Hybrid engineering role capable of asset modification and vulnerability administration.
-* `ROLE_AUDITOR` - Strictly read-only role evaluating incidents, assets, and the audit trail.
-* `ROLE_VIEWER` - Bottom-level read-only access (assigned by default to OAUTH2 signups).
+### Roles and Permissions Matrix
+The platform defines 9 hierarchical roles enforcing targeted access boundaries mapped directly against 20 permissions.
 
-### Permissions
-Permissions orchestrate precisely restricted endpoints and frontend components:
-* `USER_MANAGE`, `ROLE_ASSIGN`
-* `ASSET_CREATE`, `ASSET_EDIT`, `ASSET_DELETE`, `ASSET_VIEW`
-* `INCIDENT_VIEW`, `INCIDENT_CREATE`, `INCIDENT_MANAGE`, `INCIDENT_RESOLVE`, `INCIDENT_DELETE`
-* `SERVER_RESTART`, `CLUSTER_SCALE`, `CLOUD_MODIFY`
-* `VULN_MANAGE`, `COMPLIANCE_VIEW`, `REPORT_EXPORT`, `AUDIT_VIEW`
-* `INTEGRATION_CONFIG`, `SETTINGS_ACCESS`
+| Role                   | Assets | Incidents | Vulnerabilities | Audit | Reports | Admin |
+| ---------------------- | ------ | --------- | --------------- | ----- | ------- | ----- |
+| **Super Admin**        | Full   | Full      | Full            | Full  | Full    | Full  |
+| **Admin**              | Full   | Full      | Full            | Full  | Full    | Full  |
+| **SOC Manager**        | View   | Manage    | —               | View  | Export  | —     |
+| **Security Analyst**   | View   | Manage    | Manage          | —     | Export  | —     |
+| **Incident Responder** | View   | Manage    | —               | View  | —       | —     |
+| **Infra Engineer**     | Full   | View      | —               | —     | Export  | —     |
+| **DevSecOps**          | Manage | Manage    | Manage          | —     | Export  | —     |
+| **Auditor**            | View   | View      | —               | View  | Export  | —     |
+| **Viewer**             | View   | View      | —               | —     | —       | —     |
 
 ---
 
@@ -89,7 +82,7 @@ Permissions orchestrate precisely restricted endpoints and frontend components:
 * **Granular Role Checks:** Extensive endpoint-level authority evaluations using `@PreAuthorize`.
 * **CSRF Mitigation:** Cookie-based CSRF tokens (`XSRF-TOKEN`) via `CookieCsrfTokenRepository.withHttpOnlyFalse()` with exclusion configurations explicitly covering the stateless API boundaries.
 * **CORS Configurations:** Allowed origins mapping protecting against cross-origin data exposure while enabling secure credential integrations.
-* **AOP Auditing:** Guaranteed centralized logging intercepting modifying actions without cluttering core business service logic (detailed below).
+* **AOP Auditing:** Centralized logging intercepting modifying actions without cluttering core business service logic (detailed below).
 
 ---
 
@@ -105,11 +98,11 @@ The `AuditAspect` class natively intercepts requests bearing the `@Auditable` an
 * The **Authenticated User** performing the action.
 * The explicit **Roles/Authorities** assigned to that user.
 * Request **IP Address**.
-* Submitter **User-Agent** (Truncated defensively to 250 characters preserving DB allocations).
+* Submitter **User-Agent** (Truncated defensively to 250 characters).
 * Standard **Action Name** (e.g. `ASSET_CREATE`).
 * Execution **Result Status** (`SUCCESS` vs `FAILED: exception message`).
 
-This separates the audit concerns fundamentally from core logic processing while ensuring a non-reputable tracker of operational inputs.
+This separates the audit concerns from core business logic, maintaining a centralized and consistent record of security-sensitive operations.
 
 ---
 
@@ -182,9 +175,9 @@ SentinelCore actively interfaces with the **Brevo API** delivering email notific
 ## 14. 🤖 AI Security Assistant
 
 An interactive AI-Assistant embedded inside the frontend interface connects analysts via Natural Language interfaces.
-* Integrated specifically with the **Google Gemini API** (`grok-1.5-pro` model base mapping).
-* Functions as a context-aware fallback. Rule-based parsers intercept static known-flow inquiries (e.g. "Create an asset") preventing unnecessary LLM token utilization, while Google Gemini translates and responds to arbitrary cyber threats or query methodologies securely.
-* Built reliably utilizing unified backend `GeminiService` communication configurations ensuring standard frontend CORS boundaries remain opaque to internal system API keys.
+* Integrated specifically with the **Google Gemini API** (using the `gemini-1.5-pro` model).
+* Functions as a context-aware fallback. Rule-based parsers intercept static known-flow inquiries (e.g. "Create an asset") preventing unnecessary API usage, while Google Gemini translates and responds to broader cyber queries.
+* Built utilizing unified backend `GeminiService` communication configurations ensuring standard frontend requests remain opaque to internal system API keys.
 
 ---
 
@@ -198,7 +191,7 @@ flowchart TB
     S[Spring Security Context]
     Auth[RBAC / Authentication]
     C[Spring Boot Controllers]
-    AOP[AuditAspect Logging]
+    AOP["@Auditable Logging"]
     Svc[Business Layer Services]
     Repo[Spring Data JPA Repositories]
     DB[(PostgreSQL)]
@@ -213,7 +206,7 @@ flowchart TB
     Auth -.->|401/403 Denied| User
     Auth --> C
     
-    C -.->|@Auditable Trigger| AOP
+    C -.->|Triggers Aspect| AOP
     AOP -.->|Saves Audit Log| Repo
     
     C --> Svc
@@ -226,53 +219,37 @@ flowchart TB
 
 ---
 
-## 16. 🔄 Authentication & Request Flow
+## 16. 🔒 How a Request is Secured
 
-```mermaid
-sequenceDiagram
-    participant U as React User
-    participant S as Spring Security
-    participant M as Authentication Manager
-    participant DB as PostgreSQL
-    participant API as Secured API Endpoint
+To understand the core security flow of the application, every incoming API request is vetted thoroughly across distinct layers before interacting with the PostgreSQL database.
 
-    U->>S: POST /login (Username/Password)
-    S->>M: Authenticate AuthenticationToken
-    M->>DB: Fetch UserDetailsService credentials
-    DB-->>M: BCrypt Password validation
-    alt Success
-        M-->>S: Authentication Granted 
-        S-->>U: 200 OK + JSESSIONID Cookie
-    else Failure
-        M-->>S: Throw AuthenticationException
-        S-->>U: 401 Unauthorized
-    end
-    
-    U->>API: GET /api/incidents (Cookie Attached)
-    API->>S: Validates Session & Authority checks
-    S-->>API: Authorizes Request
-    API-->>U: 200 OK + JSON Response
+**401 Unauthorized vs. 403 Forbidden**
+* **401 Unauthorized**: Returned if the user lacks a valid `JSESSIONID` cookie or presents invalid credentials. Represented by the *Authentication* layer rejecting the request.
+* **403 Forbidden**: Returned if the user is authenticated, but their assigned operational role lacks the specific *Permission/Authority* mapped to that endpoint. 
+
+```text
+Incoming API Request
+       ↓
+[ Spring Security Filter Chain ]
+       ↓
+Authentication Check (Is the user logged in? → 401 if No)
+       ↓
+Granted Authorities Loaded (Assigned Roles & Permissions)
+       ↓
+@PreAuthorize Method Check (Does the user have the required permission? → 403 if No)
+       ↓
+Controller Execution
+       ↓
+Service Logic
+       ↓
+Repository Layer
+       ↓
+PostgreSQL Database
 ```
 
 ---
 
-## 17. 🛂 RBAC Authorization Flow
-
-```mermaid
-flowchart TD
-    Req[Incoming HTTP Authenticated Request] --> Context[Spring Security Context]
-    Context --> Privileges{Check GrantedAuthorities}
-    
-    Privileges -->|Has @PreAuthorize Role/Permission| Allowed[Target Controller Method]
-    Privileges -->|Lacks Role/Permission| Denied[403 Forbidden]
-    
-    Allowed --> Serv[Execute Service Logic]
-    Serv --> DB[(Database)]
-```
-
----
-
-## 18. 📁 Project Structure
+## 17. 📁 Project Structure
 
 ```text
 SentinelCore-SecureOps/
@@ -315,7 +292,7 @@ SentinelCore-SecureOps/
 
 ---
 
-## 19. 🧩 Technology Stack
+## 18. 🧩 Technology Stack
 
 | Category | Technology |
 | :------- | :--------- |
@@ -328,7 +305,7 @@ SentinelCore-SecureOps/
 
 ---
 
-## 20. 🔌 REST API Overview
+## 19. 🔌 REST API Overview
 
 Below represents a highly condensed summary of module endpoints. For exhaustive specifications, reference the full [API Reference Documentation](docs/api/api_reference.md).
 
@@ -347,15 +324,15 @@ Below represents a highly condensed summary of module endpoints. For exhaustive 
 
 ---
 
-## 21. 🐳 Docker & Deployment
+## 20. 🐳 Docker & Deployment
 
 The application features full container orchestration methodologies utilizing explicit `Dockerfile` parameters located in `/backend` combined with an orchestration strategy maintained via `docker-compose.yml`.
-* **Local Run:** Composes standard `postgres:15` images synchronously initialized alongside the Maven-built `backend` backend server.
+* **Local Run:** Composes standard `postgres:15` images synchronously initialized alongside the Maven-built `backend` server.
 * **Production Build:** Platform explicitly mapped for Render deployment schemas (`render.yaml`) establishing managed PostgreSQL components alongside the stateless Java operations layer, establishing strict internal connectivity references preventing unbounded public exposure variables.
 
 ---
 
-## 22. ⚙️ Environment Variables
+## 21. ⚙️ Environment Variables
 
 Important system variables managed via `.env` parameter mappings or strictly encrypted platform variables. *(Note: Actual credential combinations are managed separately).*
 
@@ -379,7 +356,7 @@ GEMINI_API_KEY=
 
 ---
 
-## 23. 🚀 Running Locally
+## 22. 🚀 Running Locally
 
 ### Prerequisites
 * Java 17+
@@ -410,7 +387,7 @@ docker-compose up --build
 
 ---
 
-## 24. 🧪 Testing & Validation
+## 23. 🧪 Testing & Validation
 
 Validation environments established verifying logical code mappings explicitly.
 * Evaluates standardized JUnit testing environments tracking standard Controller validation formats.
@@ -418,24 +395,7 @@ Validation environments established verifying logical code mappings explicitly.
 
 ---
 
-## 25. 🔒 Security Design Summary
-
-| Security Layer | Implementation |
-| :--- | :--- |
-| **Authentication** | Spring Security 6 Form Login Parameters |
-| **Password Protection** | Cryptographic BCrypt Encoding |
-| **Session Security** | JSESSIONID via `Secure` + `SameSite=None` attributes |
-| **Authorization** | Strict Role-Based Access Control (RBAC) Architecture |
-| **Permissions** | Granular assigned authority mappings (`@PreAuthorize`) |
-| **API Protection** | Standardized Filter Chain Exceptions |
-| **Audit Mechanism** | Unified Interceptor annotations mapping Aspect Logging (AOP) |
-| **Database** | PostgreSQL Encapsulation Architecture |
-| **Secret Management** | Secure abstracted Application Environment Variables |
-| **Integration** | Secure abstracted internal Google Gemini + Brevo integrations |
-
----
-
-## 26. 📚 Documentation Directory
+## 24. 📚 Documentation Directory
 
 Exhaustive references concerning explicit SentinelCore architecture mappings and implementation data formats are localized in the primary deployment documents:
 * [Architecture Overview](./docs/architecture/architecture_overview.md)
@@ -445,27 +405,36 @@ Exhaustive references concerning explicit SentinelCore architecture mappings and
 
 ---
 
-## 27. 🎯 Project Engineering Highlights
+## 25. 🎯 Project Highlights for Recruiters
 
-SentinelCore-SecureOps communicates enterprise-oriented architectural designs highlighting advanced software practices:
-* **Full-stack Monorepo Architecture** isolating generic module definitions logically.
-* **Enterprise-style RBAC** implementing extremely granular component access via 9 primary authoritative roles utilizing precise `@PreAuthorize("hasAuthority()")` checks globally.
-* **Centralized Extraneous AOP Auditing** ensuring that high-value threat data manipulation flows log silently guaranteeing system trust accountability natively.
-* **Native Natural-Language Copilots** linking explicit programmatic Google Gemini logic handling reducing standard analyst fatigue parameters dynamically.
-* **Centralized Data Aggregations** leveraging Java Stream APIs managing standardized dynamic dashboarding outputs securely effectively.
+SentinelCore-SecureOps demonstrates strong enterprise IT and cybersecurity architectural patterns:
+* Fine-grained Role-Based Access Control (RBAC)
+* 9 operational roles mapping 20 distinct system permissions
+* Spring Security 6 integration restricting controller/service boundaries
+* BCrypt password hashing and session-based authentication flows
+* Aspect-Oriented Programming (AOP) audit logging separating operational tracking from business logic
+* Enterprise Java Controller-Service-Repository patterns via Spring Boot
+* Modular RESTful API architecture
+* Relational persistence via Spring Data JPA and PostgreSQL
+* React 19 SPA frontend with component-based state management
+* Automated PDF report generation workflows
+* Transactional email alert delivery (Brevo API)
+* AI command context assistant integration (Google Gemini API)
+* Predictable Docker-compose orchestration
+* Continuous deployment mapping (Render configurations)
 
 ---
 
-## 28. 👨‍💻 Engineering Architecture Principles
+## 26. 👨‍💻 Engineering Architecture Principles
 
 Implementation highlights stringent programmatic discipline standards established globally:
-* **Explicit Separation of Concerns** distributing logic cleanly utilizing Controller -> Service -> Repository definitions strictly.
-* **Single-Responsibility Endpoints** ensuring REST structures adhere properly exposing intuitive state configurations predictably.
-* **Component Prop Drilling Management** utilizing React Context wrappers preserving authentication statuses preventing extraneous API call flows client-side.
-* **Decoupled API Logic** mapping frontend `axios` wrappers ensuring consistent headers propagation intuitively isolating parameter definitions uniformly.
+* **Explicit Separation of Concerns:** Logic distributed cleanly utilizing Controller -> Service -> Repository definitions strictly.
+* **Single-Responsibility Endpoints:** REST structures mapped adhering properly to HTTP noun paradigms.
+* **Component Context Management:** Utilizing React Context wrappers preserving authentication profiles natively without excessive backend polling.
+* **Decoupled API Logic:** Mapping frontend `axios` interceptors ensuring consistent configurations for credentials natively.
 
 ---
 
-## 29. 📸 Screenshots
+## 27. 📸 Screenshots
 
 > Screenshots will be added soon once the production design is finalized.
