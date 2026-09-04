@@ -1,24 +1,7 @@
-/**
- * RegisterPage.jsx
- *
- * Replaces: src/main/resources/templates/register.html
- * Consumes: POST /api/users/register (authService.register())
- *
- * Pixel-perfect port of register.html.
- * - Same animated background and auth-card (wide variant)
- * - Same two-column form grid layout
- * - Same fields: firstName, lastName, username, email, password, confirmPassword,
- *   phone, organization, role
- * - Same password strength bar (5-point scoring — replaces oninput="checkStrength()")
- * - Same role select options with emojis
- * - On success → navigate to /login?registered
- */
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService.js';
 import { useToast } from '../../components/common/Toast/Toast.jsx';
-import logo from '../../assets/logo.svg';
 import '../../styles/login.css';
 
 // ── Password strength scorer — ports the checkStrength() JS function ──────────
@@ -35,7 +18,6 @@ function computeStrength(val) {
     return { width: val ? widths[idx] : '0', background: val ? colors[idx] : 'transparent' };
 }
 
-// ── Username validation regex (must match backend rule) ──────────────────────
 const USERNAME_REGEX = /^[A-Za-z][A-Za-z0-9._-]{2,29}$/;
 const USERNAME_ERROR_MSG = "Username must start with a letter and contain only letters, numbers, '.', '_' or '-'.";
 
@@ -116,10 +98,8 @@ export default function RegisterPage() {
                 password: form.password,
                 phone: form.phone,
                 organization: form.organization,
-                // No `role` field — backend always assigns ROLE_VIEWER for self-registration
             });
             showToast('Account created successfully!', 'success');
-            // Redirect to /login with ?registered flag — mirrors Thymeleaf redirect
             navigate('/login?registered', { replace: true });
         } catch (err) {
             const msg = err?.response?.data?.message
@@ -135,136 +115,120 @@ export default function RegisterPage() {
     }
 
     return (
-        <div className="auth-body">
-            <div className="bg-canvas register" />
-            <div className="bg-grid" />
+        <div className="modern-auth-body">
+            <div className="bg-digital-city"></div>
 
-            <div className="auth-card wide">
-                {/* Brand */}
-                <div className="brand">
-                    <img src={logo} alt="SentinelCore Logo" className="brand-logo" style={{ width: 46, height: 46 }} />
-                    <h1 style={{ fontSize: '1.18rem' }}>Create Account</h1>
-                    <p>SentinelCore SecureOps Platform</p>
-                </div>
-
-                {/* Alerts */}
-                {error && <div className="alert alert-danger">{error}</div>}
-                {success && <div className="alert alert-success">{success}</div>}
-
-                <form onSubmit={handleSubmit} noValidate>
-                    <div className="form-grid">
-                        {/* First + Last Name */}
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="firstName">First Name</label>
-                            <input type="text" id="firstName" name="firstName" className="form-input"
-                                placeholder="Jane" value={form.firstName} onChange={handle('firstName')} />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="lastName">Last Name</label>
-                            <input type="text" id="lastName" name="lastName" className="form-input"
-                                placeholder="Smith" value={form.lastName} onChange={handle('lastName')} />
-                        </div>
-
-                        {/* Username */}
-                        <div className="form-group full">
-                            <label className="form-label" htmlFor="reg-username">
-                                Username <span style={{ color: '#e05' }}>*</span>
-                            </label>
-                            <input type="text" id="reg-username" name="username" className="form-input"
-                                placeholder="e.g. jane_smith or prashanth123" required autoComplete="username"
-                                value={form.username} onChange={handle('username')}
-                                style={usernameError ? { borderColor: '#e05252' } : {}}
-                            />
-                            {usernameError && (
-                                <p style={{ color: '#e05252', fontSize: '0.78rem', marginTop: 4, marginBottom: 0 }}>
-                                    {usernameError}
-                                </p>
-                            )}
-                            <p style={{ color: 'var(--text-muted, #64748b)', fontSize: '0.75rem', marginTop: 4, marginBottom: 0 }}>
-                                3–30 chars · start with a letter · allowed: letters, digits, <code>.</code> <code>_</code> <code>-</code>
-                            </p>
-                        </div>
-
-                        {/* Email */}
-                        <div className="form-group full">
-                            <label className="form-label" htmlFor="email">Email</label>
-                            <input type="email" id="email" name="email" className="form-input"
-                                placeholder="you@company.com" value={form.email} onChange={handle('email')} />
-                        </div>
-
-                        {/* Password */}
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="reg-password">
-                                Password <span style={{ color: '#e05' }}>*</span>
-                            </label>
-                            <input type="password" id="reg-password" name="password" className="form-input"
-                                placeholder="Min. 6 characters" required autoComplete="new-password"
-                                value={form.password} onChange={handle('password')} />
-                            <div className="password-strength">
-                                <div className="strength-bar" style={{ width: strength.width, background: strength.background }} />
+            <div className="auth-split-layout" style={{ justifyContent: 'center' }}>
+                <div className="auth-right" style={{ width: '600px' }}>
+                    <div className="modern-glass-card" style={{ padding: '40px' }}>
+                        <div className="glass-brand" style={{ marginBottom: '25px' }}>
+                            <div className="glass-logo" style={{ marginBottom: '12px' }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
                             </div>
+                            <h1 style={{ fontSize: '1.2rem' }}>Create Account</h1>
+                            <p>CSMS-IMA Platform</p>
                         </div>
 
-                        {/* Confirm Password */}
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="confirmPassword">
-                                Confirm Password <span style={{ color: '#e05' }}>*</span>
-                            </label>
-                            <input type="password" id="confirmPassword" name="confirmPassword" className="form-input"
-                                placeholder="Repeat password" required autoComplete="new-password"
-                                value={form.confirmPassword} onChange={handle('confirmPassword')} />
-                        </div>
+                        {error && <div className="form-alert error">{error}</div>}
+                        {success && <div className="form-alert success">{success}</div>}
 
-                        {/* Phone */}
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="phone">
-                                Phone <span className="optional">(optional)</span>
-                            </label>
-                            <input type="tel" id="phone" name="phone" className="form-input"
-                                placeholder="+1 555 000 0000" value={form.phone} onChange={handle('phone')} />
-                        </div>
+                        <form onSubmit={handleSubmit} noValidate>
+                            {/* Generic grid utilizing flex layout for 2 cols */}
+                            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                                <div className="modern-form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <label>FIRST NAME</label>
+                                    <div className="input-wrapper">
+                                        <input type="text" placeholder="Jane" value={form.firstName} onChange={handle('firstName')} style={{ paddingLeft: '14px' }} />
+                                    </div>
+                                </div>
+                                <div className="modern-form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <label>LAST NAME</label>
+                                    <div className="input-wrapper">
+                                        <input type="text" placeholder="Smith" value={form.lastName} onChange={handle('lastName')} style={{ paddingLeft: '14px' }} />
+                                    </div>
+                                </div>
+                            </div>
 
-                        {/* Organization */}
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="organization">Organization</label>
-                            <input type="text" id="organization" name="organization" className="form-input"
-                                placeholder="Your company" value={form.organization} onChange={handle('organization')} />
-                        </div>
+                            <div className="modern-form-group">
+                                <label>USERNAME <span style={{ color: '#ef4444' }}>*</span></label>
+                                <div className="input-wrapper">
+                                    <input type="text" required placeholder="e.g. jane_smith" value={form.username} onChange={handle('username')} style={{ paddingLeft: '14px', borderColor: usernameError ? '#ef4444' : 'rgba(255, 255, 255, 0.08)' }} />
+                                </div>
+                                {usernameError && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '6px' }}>{usernameError}</p>}
+                                <p style={{ color: '#64748b', fontSize: '0.7rem', marginTop: '6px' }}>
+                                    3–30 chars · start with letter · allowed: letters, digits, <code>.</code> <code>_</code> <code>-</code>
+                                </p>
+                            </div>
 
-                        {/* Access Level Notice — replaces the old Role selector */}
-                        <div className="form-group full">
-                            <div style={{
-                                background: 'rgba(58, 123, 213, 0.08)',
-                                border: '1px solid rgba(58, 123, 213, 0.3)',
-                                borderRadius: 6,
-                                padding: '10px 14px',
-                                fontSize: '0.8rem',
-                                color: 'var(--text-secondary, #94a3b8)',
-                                lineHeight: 1.6
-                            }}>
-                                <strong style={{ color: 'var(--highlight-blue, #3a7bd5)', display: 'block', marginBottom: 2 }}>🔒 Access Level: Viewer (Read-Only)</strong>
+                            <div className="modern-form-group">
+                                <label>EMAIL</label>
+                                <div className="input-wrapper">
+                                    <input type="email" placeholder="you@company.com" value={form.email} onChange={handle('email')} style={{ paddingLeft: '14px' }} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                                <div className="modern-form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <label>PASSWORD <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <div className="input-wrapper">
+                                        <input type="password" required placeholder="Min. 6 characters" value={form.password} onChange={handle('password')} style={{ paddingLeft: '14px' }} />
+                                    </div>
+                                    <div style={{ height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', marginTop: '8px', overflow: 'hidden' }}>
+                                        <div style={{ height: '100%', width: strength.width, background: strength.background, transition: 'all 0.3s' }} />
+                                    </div>
+                                </div>
+                                <div className="modern-form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <label>CONFIRM PASSWORD <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <div className="input-wrapper">
+                                        <input type="password" required placeholder="Repeat password" value={form.confirmPassword} onChange={handle('confirmPassword')} style={{ paddingLeft: '14px' }} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                                <div className="modern-form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <label>PHONE (OPTIONAL)</label>
+                                    <div className="input-wrapper">
+                                        <input type="tel" placeholder="+1 555 000 0000" value={form.phone} onChange={handle('phone')} style={{ paddingLeft: '14px' }} />
+                                    </div>
+                                </div>
+                                <div className="modern-form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <label>ORGANIZATION</label>
+                                    <div className="input-wrapper">
+                                        <input type="text" placeholder="Your company" value={form.organization} onChange={handle('organization')} style={{ paddingLeft: '14px' }} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', padding: '12px', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '20px', lineHeight: '1.5' }}>
+                                <strong style={{ color: '#60a5fa', display: 'block', marginBottom: '4px' }}>🔒 Access Level: Viewer (Read-Only)</strong>
                                 All new accounts start with read-only Viewer access. A platform administrator can promote your role after registration.
                             </div>
-                        </div>
 
-                        {/* Terms */}
-                        <div className="form-group full">
-                            <label className="terms-row">
-                                <input type="checkbox" required checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-                                I agree to the <a href="#">Terms of Service</a> and <a href="#">Security Policy</a>
-                            </label>
+                            <div className="modern-form-helpers" style={{ marginBottom: '25px' }}>
+                                <label className="custom-check" style={{ fontSize: '0.75rem' }}>
+                                    <input type="checkbox" required checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                                    <span style={{ marginLeft: '4px' }}>I agree to the <a href="#" style={{ color: '#60a5fa', textDecoration: 'none' }}>Terms of Service</a> and <a href="#" style={{ color: '#60a5fa', textDecoration: 'none' }}>Security Policy</a></span>
+                                </label>
+                            </div>
+
+                            <button type="submit" className="glass-btn-primary" disabled={loading}>
+                                {loading ? <span className="spinner" /> : 'Create Account →'}
+                            </button>
+                        </form>
+
+                        <div className="modern-link-row" style={{ marginTop: '25px', marginBottom: '0' }}>
+                            Already have an account? <Link to="/login">Sign in</Link>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: 20 }}>
-                        {loading
-                            ? <><div className="btn-spinner" /> Creating account…</>
-                            : 'Create Account'
-                        }
-                    </button>
-                </form>
-
-                <div className="link-row">Already have an account? <Link to="/login">Sign in</Link></div>
+            <div className="auth-footer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Cloud Security Monitoring System • Protect. Monitor. Respond.
             </div>
         </div>
     );

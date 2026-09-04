@@ -1,16 +1,6 @@
-/**
- * ForgotPasswordPage.jsx
- *
- * Route: /forgot-password (public)
- * Allows unauthenticated users to request a password-reset email.
- *
- * Design: matches the existing auth-card / login.css look exactly.
- */
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import authService from '../../services/authService.js';
-import logo from '../../assets/logo.svg';
 import '../../styles/login.css';
 
 export default function ForgotPasswordPage() {
@@ -27,7 +17,6 @@ export default function ForgotPasswordPage() {
             setError('Please enter your email address.');
             return;
         }
-        // Basic email format check (full validation happens on backend too)
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
             setError('Please enter a valid email address.');
             return;
@@ -36,10 +25,8 @@ export default function ForgotPasswordPage() {
         setLoading(true);
         try {
             await authService.forgotPassword(email.trim());
-            // Always show success message — backend never reveals whether email exists
             setSubmitted(true);
         } catch (err) {
-            // Even on network errors, show a generic friendly message
             const msg = err?.response?.data?.message;
             if (msg) {
                 setError(msg);
@@ -54,90 +41,80 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <div className="auth-body">
-            <div className="bg-canvas" />
-            <div className="bg-grid" />
+        <div className="modern-auth-body">
+            <div className="bg-digital-city"></div>
 
-            <div className="auth-card">
-                {/* Brand — identical to LoginPage */}
-                <div className="brand">
-                    <img src={logo} alt="SentinelCore Logo" className="brand-logo" />
-                    <h1>SentinelCore SecureOps</h1>
-                    <p>Cybersecurity Infrastructure Monitoring Portal</p>
-                </div>
-
-                {/* Page title */}
-                <div style={{ marginBottom: '22px', textAlign: 'center' }}>
-                    <h2 style={{
-                        color: '#e8edf8',
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        margin: '0 0 6px',
-                    }}>
-                        🔑 Forgot Password?
-                    </h2>
-                    <p style={{ color: '#6b7fa0', fontSize: '0.82rem', margin: 0 }}>
-                        Enter your registered email and we&apos;ll send you a reset link.
-                    </p>
-                </div>
-
-                {/* Success state */}
-                {submitted ? (
-                    <div style={{ textAlign: 'center' }}>
-                        <div className="alert alert-success" style={{ justifyContent: 'center', marginBottom: 24 }}>
-                            ✅ If an account exists for this email, a password reset link has been sent.
-                            Please check your inbox (and spam folder).
-                        </div>
-                        <Link to="/login" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', marginBottom: 0 }}>
-                            ← Back to Login
-                        </Link>
-                    </div>
-                ) : (
-                    <>
-                        {/* Error alert */}
-                        {error && (
-                            <div className="alert alert-danger">{error}</div>
-                        )}
-
-                        {/* Form */}
-                        <form onSubmit={handleSubmit} noValidate>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="reset-email">
-                                    Email Address
-                                </label>
-                                <input
-                                    id="reset-email"
-                                    type="email"
-                                    className="form-input"
-                                    placeholder="Enter your registered email"
-                                    autoFocus
-                                    autoComplete="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    disabled={loading}
-                                />
+            <div className="auth-split-layout" style={{ justifyContent: 'center' }}>
+                <div className="auth-right">
+                    <div className="modern-glass-card">
+                        <div className="glass-brand">
+                            <div className="glass-logo">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
                             </div>
-
-                            <button
-                                type="submit"
-                                className="btn-primary"
-                                id="forgotPasswordBtn"
-                                disabled={loading}
-                                style={{ marginBottom: '18px' }}
-                            >
-                                {loading
-                                    ? <><div className="btn-spinner" /> Sending…</>
-                                    : 'Send Reset Link'
-                                }
-                            </button>
-                        </form>
-
-                        <div className="link-row">
-                            <Link to="/login">← Back to Login</Link>
+                            <h1>CSMS-IMA Platform</h1>
+                            <p>Cybersecurity Infrastructure Monitoring Portal</p>
                         </div>
-                    </>
-                )}
+
+                        <div style={{ marginBottom: '25px', textAlign: 'center' }}>
+                            <h2 style={{ color: '#f8fafc', fontSize: '1.1rem', fontWeight: 600, marginBottom: '6px' }}>
+                                🔑 Forgot Password?
+                            </h2>
+                            <p style={{ color: '#94a3b8', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                                Enter your registered email and we&apos;ll send you a reset link.
+                            </p>
+                        </div>
+
+                        {submitted ? (
+                            <div style={{ textAlign: 'center' }}>
+                                <div className="form-alert success" style={{ marginBottom: '24px' }}>
+                                    ✅ If an account exists for this email, a password reset link has been sent.
+                                    Please check your inbox (and spam folder).
+                                </div>
+                                <Link to="/login" className="glass-btn-primary" style={{ textDecoration: 'none' }}>
+                                    ← Back to Login
+                                </Link>
+                            </div>
+                        ) : (
+                            <>
+                                {error && <div className="form-alert error">{error}</div>}
+
+                                <form onSubmit={handleSubmit} noValidate>
+                                    <div className="modern-form-group">
+                                        <label>EMAIL ADDRESS</label>
+                                        <div className="input-wrapper">
+                                            <input
+                                                type="email"
+                                                placeholder="Enter your registered email"
+                                                autoFocus
+                                                autoComplete="email"
+                                                required
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                disabled={loading}
+                                                style={{ paddingLeft: '14px' }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" className="glass-btn-primary" disabled={loading} style={{ marginBottom: '20px' }}>
+                                        {loading ? <span className="spinner" /> : 'Send Reset Link →'}
+                                    </button>
+                                </form>
+
+                                <div className="modern-link-row" style={{ marginBottom: 0 }}>
+                                    <Link to="/login" style={{ marginLeft: 0 }}>← Back to Login</Link>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="auth-footer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Cloud Security Monitoring System • Protect. Monitor. Respond.
             </div>
         </div>
     );
